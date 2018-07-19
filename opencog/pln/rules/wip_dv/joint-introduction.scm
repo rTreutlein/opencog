@@ -25,7 +25,7 @@
 ;; Old rule. We keep for now for backward compatibility ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define and-inheritance-introduction-rule
+(define joint-introduction-rule
   (BindLink
      (VariableList
            (VariableNode "$A")
@@ -54,7 +54,7 @@
             (VariableNode "$B"))
      )
      (ExecutionOutputLink
-        (GroundedSchemaNode "scm: and-inheritance-introduction-formula")
+        (GroundedSchemaNode "scm: joint-introduction-formula")
         (ListLink
            (VariableNode "$A")
            (VariableNode "$B")
@@ -66,7 +66,7 @@
   )
 )
 
-(define (and-inheritance-introduction-formula A B AB)
+(define (joint-introduction-formula A B AB)
     (let*
         ((key (PredicateNode "CDV"))
          (dvA  (cog-value A  key))
@@ -76,7 +76,7 @@
          (ABs (append As Bs))
          ;;FIXME: Add untility for flattening nested links
         )
-        (cog-set-value! (Associative ABs) key (cog-cdv-get-joint dvAB dvA))
+        (cog-set-value! (ListLink ABs) key (cog-cdv-get-joint dvAB dvA))
     )
 )
 
@@ -88,8 +88,8 @@
 )
 
 ; Name the rule
-(define and-inheritance-introduction-rule-name
-  (DefinedSchemaNode "and-inheritance-introduction-rule"))
+(define joint-introduction-rule-name
+  (DefinedSchemaNode "joint-introduction-rule"))
 (DefineLink
-   and-inheritance-introduction-rule-name
-   and-inheritance-introduction-rule)
+   joint-introduction-rule-name
+   joint-introduction-rule)

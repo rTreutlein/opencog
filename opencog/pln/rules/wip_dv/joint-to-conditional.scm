@@ -27,7 +27,7 @@
         )
         (Evaluation
             (GroundedPredicate "scm: has-dv")
-            (Associative
+            (ListLink
                 (VariableNode "$A")
                 (VariableNode "$B"))
         )
@@ -37,7 +37,7 @@
               (VariableNode "$B")))
         ;; Pattern clauses
         (VariableNode "$A")
-        (Associative
+        (ListLink
             (VariableNode "$A")
             (VariableNode "$B"))
      )
@@ -45,7 +45,7 @@
         (GroundedSchemaNode "scm: joint-to-conditional-formula")
         (ListLink
            (VariableNode "$A")
-           (Associative
+           (ListLink
                (VariableNode "$A")
                (VariableNode "$B"))
            (InheritanceLink

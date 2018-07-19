@@ -49,7 +49,7 @@
 (define pln-rules-dir "../../../opencog/pln/rules/")
 (define (append-rule-dir basename) (string-append pln-rules-dir basename))
 (define rule-basenames
-  (list "wip_dv/and-inheritance-introduction.scm"
+  (list "wip_dv/joint-introduction.scm"
         "wip_dv/joint-to-conditional.scm"
         ;"wip_dv/joint-simplification.scm"
         "wip_dv/joint-reduction.scm"
@@ -65,7 +65,7 @@
 
 ; List the rules
 (define rules
-  (list and-inheritance-introduction-rule
+  (list joint-introduction-rule
         joint-to-conditional-rule
         joint-to-conditional-second-rule
         ;joint-simplification-rule

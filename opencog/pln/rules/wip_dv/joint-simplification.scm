@@ -25,14 +25,14 @@
         ;; Preconditions
         (Evaluation
             (GroundedPredicate "scm: has-dv")
-            (Associative
+            (ListLink
                 (GlobNode "$A")
                 (Associative
                     (GlobNode "$B"))
                 (GlobNode "$C"))
         )
         ;; Pattern clauses
-        (Associative
+        (ListLink
             (GlobNode "$A")
             (Associative
                 (GlobNode "$B"))
@@ -44,9 +44,9 @@
            (GlobNode "$A")
            (GlobNode "$B")
            (GlobNode "$C")
-           (Associative
+           (ListLink
                (GlobNode "$A")
-               (Associative
+               (ListLink
                    (GlobNode "$B"))
                (GlobNode "$C")
            )
@@ -62,7 +62,7 @@
          (dvB (cog-value B key))
          (i (length (cog-outgoing-set As)))
         )
-        (cog-set-value! (Associate As Cs) key (cog-dv-sum-joint dvAsBCs dvB i))
+        (cog-set-value! (ListLink As Cs) key (cog-dv-sum-joint dvAsBCs dvB i))
     )
 )
 

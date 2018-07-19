@@ -2,7 +2,7 @@
 
 ;; Set parameters
 (define pss 100)                    ; Problem set size
-(define niter 1)                    ; Number of iterations
+(define niter 5)                    ; Number of iterations
 (define piter 30)                   ; Number of iterations used for each problem
 
 ;; Load utils
