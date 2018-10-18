@@ -25,7 +25,7 @@
 ;; Old rule. We keep for now for backward compatibility ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define joint-introduction-rule
+(define (gen-joint-introduction-rule linkType)
   (BindLink
      (VariableList
            (VariableNode "$A")
@@ -39,7 +39,7 @@
         )
         (Evaluation
             (GroundedPredicate "scm: has-dv")
-            (InheritanceLink
+            (linkType
                 (VariableNode "$A")
                 (VariableNode "$B"))
         )
@@ -49,7 +49,7 @@
               (VariableNode "$B")))
       ;; Pattern clauses
         (VariableNode "$A")
-        (InheritanceLink
+        (linkType
             (VariableNode "$A")
             (VariableNode "$B"))
      )
@@ -58,7 +58,7 @@
         (ListLink
            (VariableNode "$A")
            (VariableNode "$B")
-           (InheritanceLink
+           (linkType
                (VariableNode "$A")
                (VariableNode "$B"))
         )
@@ -76,20 +76,32 @@
          (ABs (append As Bs))
          ;;FIXME: Add untility for flattening nested links
         )
-        (cog-set-value! (ListLink ABs) key (cog-cdv-get-joint dvAB dvA))
+        (cog-set-value! (ProductLink ABs) key (cog-cdv-get-joint dvAB dvA))
     )
 )
 
 (define (flatten A)
-    (if (cog-link? A)
+    (if (equal? (cog-type A) (cog-type (ProductLink)))
         (cog-outgoing-set A)
         (list A)
     )
 )
 
-; Name the rule
-(define joint-introduction-rule-name
-  (DefinedSchemaNode "joint-introduction-rule"))
+(define joint-inheritance-introduction-rule
+  (gen-joint-introduction-rule InheritanceLink))
+
+(define joint-implication-introduction-rule
+  (gen-joint-introduction-rule ImplicationLink))
+
+; Name the rules
+(define joint-inheritance-introduction-rule-name
+  (DefinedSchemaNode "joint-inheritance-introduction-rule"))
 (DefineLink
-   joint-introduction-rule-name
-   joint-introduction-rule)
+   joint-inheritance-introduction-rule-name
+   joint-inheritance-introduction-rule)
+
+(define joint-implication-introduction-rule-name
+  (DefinedSchemaNode "joint-implication-introduction-rule"))
+(DefineLink
+   joint-implication-introduction-rule-name
+   joint-implication-introduction-rule)

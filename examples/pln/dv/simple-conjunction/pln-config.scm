@@ -46,14 +46,10 @@
 ;;;;;;;;;;;;;;;;
 
 ;; Load the rules (use load for relative path w.r.t. to that file)
-(define pln-rules-dir "../../../opencog/pln/rules/")
+(define pln-rules-dir "../../../../opencog/pln/rules/")
 (define (append-rule-dir basename) (string-append pln-rules-dir basename))
 (define rule-basenames
-  (list "wip_dv/joint-introduction.scm"
-        "wip_dv/joint-to-conditional.scm"
-        ;"wip_dv/joint-simplification.scm"
-        "wip_dv/joint-reduction.scm"
-        "wip_dv/modus-ponens.scm"
+  (list "dv/wip/and-introduction.scm"
         )
   )
 (define rule-files (map append-rule-dir rule-basenames))
@@ -65,12 +61,7 @@
 
 ; List the rules
 (define rules
-  (list joint-introduction-rule
-        joint-to-conditional-rule
-        joint-to-conditional-second-rule
-        ;joint-simplification-rule
-        joint-reduction-rule
-        modus-ponens-inheritance-rule
+  (list and-introduction-rule
         )
   )
 

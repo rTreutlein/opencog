@@ -6,13 +6,13 @@
 (define W (ConceptNode "Grass Wet"))
 (define SR (InheritanceLink R S))
 ;(define RS (InheritanceLink S R))
-(define RandS (Associative R S))
-(define WRS (InheritanceLink (Associative R S) W))
+(define RandS (ProductLink R S))
+(define WRS (InheritanceLink (ProductLink R S) W))
 
 ;(define CS (ConceptNode "Sprinkler"))
 
 (define key (PredicateNode "CDV"))
-(define zo (list (NumberNode 0) (NumberNode 1)))
+(define zo (list (FloatValue 0) (FloatValue 1)))
 
 (define (with-cdv atom conds dvs) (cog-set-value! atom key (cog-new-cdv conds dvs)))
 
@@ -25,10 +25,10 @@
 (define dvSR1 (cog-new-dv zo '(19800 200)))
 (with-cdv SR zo (list dvSR0 dvSR1))
 
-(define conds (list (ListLink (NumberNode 0) (NumberNode 0))
-                    (ListLink (NumberNode 0) (NumberNode 1))
-                    (ListLink (NumberNode 1) (NumberNode 0))
-                    (ListLink (NumberNode 1) (NumberNode 1))
+(define conds (list (ProductLink (NumberNode 0) (NumberNode 0))
+                    (ProductLink (NumberNode 0) (NumberNode 1))
+                    (ProductLink (NumberNode 1) (NumberNode 0))
+                    (ProductLink (NumberNode 1) (NumberNode 1))
               )
 )
 
@@ -42,8 +42,8 @@
 (define dvR (cog-value R key))
 (define dvSR (cog-value SR key))
 ;(define dvCS (cog-value CS key))
-;(define dvWRS (cog-value WRS key))
-;(define dvRandS (cog-cdv-get-joint dvSR dvR))
+(define dvWRS (cog-value WRS key))
+(define dvRandS (cog-cdv-get-joint dvSR dvR))
 ;(define dvS (cog-cdv-get-unconditional dvSR dvR))
 ;
 ;(define dvRS (cog-dv-divide dvRandS dvS))
@@ -52,11 +52,15 @@
 
 (load "pln-config.scm")
 
-
 ;Run Inference manually
 (cog-execute! modus-ponens-inheritance-rule)
-(cog-execute! and-inheritance-introduction-rule)
+;(display (cog-value S key))
+(cog-execute! joint-inheritance-introduction-rule)
+;(cog-cdv-get-joint dvWRS dvRandS)
+;(display (cog-value S key))
 (cog-execute! joint-reduction-rule)
+;(display (cog-value S key))
 (cog-execute! modus-ponens-inheritance-rule)
-(cog-execute! joint-to-conditional-second-rule)
+;(display (cog-value S key))
+(cog-execute! joint-to-inheritance-second-rule)
 (cog-value (Inheritance W R) key)
