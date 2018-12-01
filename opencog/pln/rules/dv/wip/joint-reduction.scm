@@ -1,15 +1,14 @@
 ; =====================================================================
 ; Joint Reduction Rule
 ;
-; And
+; Product
 ;   A*
 ;   B
 ;   C*
-; B
 ; |-
-; And
+; Product
 ;    A*
-;    B*
+;    C*
 ;----------------------------------------------------------------------
 
 (use-modules (opencog logger))
@@ -30,12 +29,7 @@
                 (VariableNode "$B")
                 (GlobNode "$C"))
         )
-        (Evaluation
-            (GroundedPredicate "scm: has-dv")
-            (VariableNode "$B")
-        )
         ;; Pattern clauses
-        (VariableNode "$B")
         (ProductLink
             (GlobNode "$A")
             (VariableNode "$B")
@@ -61,7 +55,6 @@
     (let*
         ((key (PredicateNode "CDV"))
          (dvAsBCs (cog-value AsBCs key))
-         (dvB (cog-value B key))
          (lAs (if (cog-link? As)
                   (cog-outgoing-set As)
                   (list As)
@@ -73,7 +66,7 @@
          (lACs (append lAs lCs))
          (i (length lAs))
         )
-        (cog-set-value! (ProductLink lACs) key (cog-dv-sum-joint dvAsBCs dvB i))
+        (cog-set-value! (ProductLink lACs) key (cog-dv-sum-joint dvAsBCs i))
     )
 )
 
