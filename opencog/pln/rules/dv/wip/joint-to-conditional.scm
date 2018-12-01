@@ -1,7 +1,7 @@
 ; =====================================================================
 ; Joint to conditonal rule
 ;
-; And
+; Product
 ;   A
 ;   B
 ; A
@@ -66,7 +66,7 @@
          (dvA  (cog-value A  key))
          (dvAandB (cog-value AandB key))
         )
-        (cog-set-value! BinhA key (cog-dv-divide dvAandB dvA 0))
+        (cog-set-value! BinhA key (cog-dv-divide dvAandB dvA 1))
     )
 )
 

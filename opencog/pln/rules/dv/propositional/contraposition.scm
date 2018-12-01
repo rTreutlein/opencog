@@ -76,7 +76,7 @@
 		 (dvJ (cog-cdv-get-joint cdvAB dvA))
 		 (dvNJ (cog-negate dvJ))
 		 (dvNB (cog-negate dvB))
-		 (dvNBNA (cog-dv-divide dvNJ dvNB 1))
+		 (dvNBNA (cog-dv-divide dvNJ dvNB 0))
 		)
 		(cog-set-value! NBNA key dvNBNA)
 	)

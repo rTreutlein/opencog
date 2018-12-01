@@ -55,7 +55,7 @@
 	   (dvB (cog-value B key))
 	   (cdvAB (cog-value AB key))
 	   (dvJ (cog-cdv-get-joint cdvAB dvA))
-	   (cdvBA (cog-dv-divide dvJ dvB 1))
+	   (cdvBA (cog-dv-divide dvJ dvB 0))
 	  )
 	  (cog-set-value! BA key cdvBA)
 	)

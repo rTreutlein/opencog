@@ -46,7 +46,7 @@
 (define dvRandS (cog-cdv-get-joint dvSR dvR))
 ;(define dvS (cog-cdv-get-unconditional dvSR dvR))
 ;
-;(define dvRS (cog-dv-divide dvRandS dvS))
+;(define dvRS (cog-dv-divide dvRandS dvS 0))
 ;
 ;(define dvCR (cog-cdv-get-unconditional dvRS dvCS))
 
