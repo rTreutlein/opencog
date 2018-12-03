@@ -64,8 +64,9 @@
         ((key (PredicateNode "CDV"))
          (dvA (cog-value A key))
          (dvAB (cog-value AB key))
+         (dvB (cog-cdv-get-unconditional dvAB dvA))
         )
-        (cog-set-value! B key (cog-cdv-get-unconditional dvAB dvA))
+        (cog-set-value! B key dvB)
     )
 )
 

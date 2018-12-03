@@ -5,25 +5,25 @@
 (define BC (InheritanceLink B C))
 (define AC (InheritanceLink A C))
 
-(define zo (list (FloatValue 0) (FloatValue 1)))
+(define zo (list (list '(0 0.5)) (list '(0.5 1))))
+(define z1 (list (list '(0.5 1))))
 
-(define z2 (list (FloatValue 0.1) (FloatValue 0.9)))
+
+(define z2 (list (list '(0.1 0.5)) (list '(0.5 0.9))))
+
+(define z3 (list (list '(0.5 0.9))))
 
 (define key (PredicateNode "CDV"))
 
-(define (with-cdv atom dvs) (cog-set-value! atom key (cog-new-cdv zo dvs)))
+(define dvAB2 (cog-new-dv z3 '(100)))
 
-(define dvAB1 (cog-new-dv zo '(0 0)))
-(define dvAB2 (cog-new-dv z2 '(0 100)))
-
-(define dvBC1 (cog-new-dv zo '(0 0)))
 (define dvBC2 (cog-new-dv zo '(10 90)))
 
-(with-cdv AB (list dvAB1 dvAB2))
-(with-cdv BC (list dvBC1 dvBC2))
+(define dvAB (cog-new-cdv z1 (list dvAB2)))
+(define dvBC (cog-new-cdv z1 (list dvBC2)))
 
-AB
-BC
+(cog-set-value! AB key dvAB)
+(cog-set-value! BC key dvBC)
 
 (load "pln-config.scm")
 

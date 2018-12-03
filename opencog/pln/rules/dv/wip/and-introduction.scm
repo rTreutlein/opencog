@@ -60,7 +60,7 @@
 	  ((key (PredicateNode "CDV"))
 	   (dvA (cog-value A key))
        (dvB (cog-value B key))
-	   (dvAB (cog-dv-conjuction dvA dvB))
+	   (dvAB (cog-dv-conjunction dvA dvB))
 	  )
     (cog-set-value! (AndLink A B) key dvAB)
   )

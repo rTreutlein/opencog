@@ -91,7 +91,7 @@
          (dvBC (cog-value BC key))
          (conds (cog-cdv-get-conditions dvAB))
          (unconds (cog-cdv-get-unconditionals dvAB))
-         (x (map ((curry2 cog-cdv-get-unconditional-no-match) dvBC) unconds))
+         (x (map ((curry2 cog-cdv-get-unconditional) dvBC) unconds))
          (cdv (cog-new-cdv conds x))
 		 ;(ab (cog-set-value! (ConceptNode "dvAB") key dvAB))
          ;(bc (cog-set-value! (ConceptNode "dvBC") key dvBC))

@@ -1,18 +1,19 @@
-
-
-
 (define R (ConceptNode "Rain"))
 (define S (ConceptNode "Sprinkler"))
 (define W (ConceptNode "Grass Wet"))
 (define SR (InheritanceLink R S))
 ;(define RS (InheritanceLink S R))
 (define RandS (ProductLink R S))
+(define pRSW (ProductLink
+                (ConceptNode "Rain")
+                (ConceptNode "Sprinkler")
+                (ConceptNode "Grass Wet")))
 (define WRS (InheritanceLink (ProductLink R S) W))
 
 ;(define CS (ConceptNode "Sprinkler"))
 
 (define key (PredicateNode "CDV"))
-(define zo (list (FloatValue 0) (FloatValue 1)))
+(define zo (list (list '(0)) (list '(1))))
 
 (define (with-cdv atom conds dvs) (cog-set-value! atom key (cog-new-cdv conds dvs)))
 
@@ -25,14 +26,14 @@
 (define dvSR1 (cog-new-dv zo '(19800 200)))
 (with-cdv SR zo (list dvSR0 dvSR1))
 
-(define conds (list (ProductLink (NumberNode 0) (NumberNode 0))
-                    (ProductLink (NumberNode 0) (NumberNode 1))
-                    (ProductLink (NumberNode 1) (NumberNode 0))
-                    (ProductLink (NumberNode 1) (NumberNode 1))
+(define conds (list (list '(0) '(0))
+                    (list '(0) '(1))
+                    (list '(1) '(0))
+                    (list '(1) '(1))
               )
 )
 
-(define dvWRS00 (cog-new-dv zo '(48000 0)))
+(define dvWRS00 (cog-new-dv (list (list '(0))) '(48000)))
 (define dvWRS01 (cog-new-dv zo '(3200 28800)))
 (define dvWRS10 (cog-new-dv zo '(3960 15840)))
 (define dvWRS11 (cog-new-dv zo '(2 198)))
@@ -45,7 +46,7 @@
 (define dvWRS (cog-value WRS key))
 (define dvRandS (cog-cdv-get-joint dvSR dvR))
 ;(define dvS (cog-cdv-get-unconditional dvSR dvR))
-;
+
 ;(define dvRS (cog-dv-divide dvRandS dvS 0))
 ;
 ;(define dvCR (cog-cdv-get-unconditional dvRS dvCS))
@@ -63,4 +64,4 @@
 (cog-execute! modus-ponens-inheritance-rule)
 ;(display (cog-value S key))
 (cog-execute! joint-to-inheritance-second-rule)
-(cog-value (Inheritance W R) key)
+;(cog-value (Inheritance W R) key)

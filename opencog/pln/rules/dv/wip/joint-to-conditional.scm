@@ -168,7 +168,7 @@
          (dvB  (cog-value B  key))
          (dvAandB (cog-value AandB key))
         )
-        (cog-set-value! AinhB key (cog-dv-divide dvAandB dvB 1))
+        (cog-set-value! AinhB key (cog-dv-divide dvAandB dvB 0))
     )
 )
 

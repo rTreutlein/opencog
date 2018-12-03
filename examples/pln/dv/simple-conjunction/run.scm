@@ -4,19 +4,19 @@
 
 (define key (PredicateNode "CDV"))
 
-(define af (list (FloatValue 0) (FloatValue 0.5) (FloatValue 1)))
+(define af (list (list '(0)) (list '(0.5)) (list '(1))))
 (define dvA (cog-new-dv af '(100 50 50)))
 
-(define bf (list (FloatValue 0.25) (FloatValue 0.75)))
+(define bf (list (list '(0.25)) (list '(0.75))))
 (define dvB (cog-new-dv bf '(100 100)))
 
-(define cf (list (FloatValue 0) (FloatValue 1)))
+(define cf (list (list '(0)) (list '(1))))
 (define dvC (cog-new-dv cf '(100 100)))
 
-(define cf (list (FloatValue 0) (FloatValue 1)))
+(define cf (list (list '(0)) (list '(1))))
 (define dvCC (cog-new-dv cf '(100 100)))
 
-(define df (list (FloatValue 0.5)))
+(define df (list (list '(0.5))))
 (define dvD (cog-new-dv df '(200)))
 
 

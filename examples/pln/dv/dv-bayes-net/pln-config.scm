@@ -52,7 +52,7 @@
   (list "dv/wip/joint-introduction.scm"
         "dv/wip/joint-to-conditional.scm"
         "dv/wip/joint-reduction.scm"
-        "dv/wip/modus-ponens.scm"
+        "dv/propositional/modus-ponens.scm"
         )
   )
 (define rule-files (map append-rule-dir rule-basenames))
