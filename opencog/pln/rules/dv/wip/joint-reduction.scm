@@ -12,6 +12,8 @@
 ;----------------------------------------------------------------------
 
 (use-modules (opencog logger))
+(use-modules (opencog distvalue))
+
 
 (define joint-reduction-rule
   (BindLink

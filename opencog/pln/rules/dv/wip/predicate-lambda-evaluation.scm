@@ -18,6 +18,8 @@
 ;; Evaluate the TV of Lambda around an evaluation of a predicate.
 ;; ----------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 (define predicate-lambda-evaluation-vardecl
   (VariableList
      (TypedVariable

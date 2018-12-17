@@ -22,6 +22,8 @@
 ;; being symmetric.
 ;; -----------------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 (use-modules (opencog logger))
 
 (define equivalence-to-implication-vardecl

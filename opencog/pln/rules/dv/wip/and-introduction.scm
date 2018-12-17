@@ -19,6 +19,8 @@
 
 (use-modules (opencog logger))
 
+(use-modules (opencog distvalue))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Old rule. We keep for now for backward compatibility ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -1,3 +1,6 @@
+
+(use-modules (opencog distvalue))
+
 (define R (ConceptNode "Rain"))
 (define S (ConceptNode "Sprinkler"))
 (define W (ConceptNode "Grass Wet"))
@@ -64,4 +67,4 @@
 (cog-execute! modus-ponens-inheritance-rule)
 ;(display (cog-value S key))
 (cog-execute! joint-to-inheritance-second-rule)
-;(cog-value (Inheritance W R) key)
+(cog-value (Inheritance W R) key)

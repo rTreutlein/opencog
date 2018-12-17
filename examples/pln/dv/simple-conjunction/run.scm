@@ -1,3 +1,6 @@
+
+(use-modules (opencog distvalue))
+
 (define A (ConceptNode "A"))
 (define B (ConceptNode "B"))
 (define AB (AndLink A B))

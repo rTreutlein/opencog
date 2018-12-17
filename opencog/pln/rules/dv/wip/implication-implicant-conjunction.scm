@@ -9,11 +9,13 @@
 ;;    C
 ;; |-
 ;; ImplicationLink <TV>
-;;    AndLink
+;;    ProductLink
 ;;       A
 ;;       B
 ;;    C
 ;;----------------------------------------------------------------------
+
+(use-modules (opencog distvalue))
 
 (define implication-implicant-conjunction-variables
   (VariableList

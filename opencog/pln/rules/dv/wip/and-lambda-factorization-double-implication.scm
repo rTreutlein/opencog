@@ -62,6 +62,8 @@
 ;; by higher order facts later.
 ;; -----------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 (define and-lambda-factorization-double-implication-variables
   (VariableList
     (TypedVariableLink
@@ -115,13 +117,12 @@
 
 (define truecdv
   (let*
-      ((zo (list (ProductLink (NumberNode 0) (NumberNode 0))
-				 (ProductLink (NumberNode 1) (NumberNode 1))
-		   ))
-       (dv1 (cog-new-dv zo '(800 0)))
-       (dv2 (cog-new-dv zo '(0 800)))
+      ((z1 (list (list '(0) '(0))))
+	   (z2 (list (list '(1) '(1))))
+       (dv1 (cog-new-dv z1 '(800)))
+       (dv2 (cog-new-dv z2 '(800)))
       )
-      (cog-new-cdv zo (list dv1 dv2))
+      (cog-new-cdv (append z1 z2) (list dv1 dv2))
   )
 )
 

@@ -18,6 +18,8 @@
 ;;
 ;; -----------------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 ;; Generate the corresponding inversion rule given its link-type.
 (define (gen-inversion-rule link-type)
   (BindLink

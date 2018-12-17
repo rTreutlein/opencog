@@ -17,6 +17,8 @@
 ;    B
 ;----------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 
 (define or-introduction-rule
   (BindLink

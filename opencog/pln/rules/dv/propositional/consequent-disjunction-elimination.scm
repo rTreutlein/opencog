@@ -24,6 +24,8 @@
 ;; independent on A, this assumption should be replaced by an extra
 ;; premise (<implication-link> A (And B C)) to find out P(B,C|A).
 
+(use-modules (opencog distvalue))
+
 (define (gen-consequent-disjunction-elimination-rule impl-type var-type)
   (let* ((A (Variable "$A"))
          (B (Variable "$B"))

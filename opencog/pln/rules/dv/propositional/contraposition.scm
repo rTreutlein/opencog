@@ -34,6 +34,8 @@
 ;; conclusion, as the backward chainer would.
 ;; -----------------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 ;; Generate the corresponding contraposition rule given its unscope
 ;; link-type.
 (define (gen-contraposition-rule link-type)

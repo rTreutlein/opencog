@@ -60,7 +60,8 @@
 
 (define (with-cdv atom conds dvs) (cog-set-value! atom key (cog-new-cdv conds dvs)))
 
-(define (with-simple-cdv atom dv) (cog-set-value! atom key (cog-new-cdv (list (FloatValue 1)) (list dv))))
+(define (with-simple-cdv atom dv)
+  (cog-set-value! atom key (cog-new-cdv (list (list '(1))) (list dv))))
 
 ;; People who told the truth about something are honest
 (define people-telling-the-truth-are-honest
@@ -524,3 +525,18 @@
     )
   )
 )
+
+
+(define (my-print set)
+    (let*
+      ((oset (cog-outgoing-set set))
+       (dvs (map (lambda (x) (cog-value x key)) oset))
+      )
+      (begin
+        (display set)
+        (display dvs)
+      )
+    )
+)
+
+

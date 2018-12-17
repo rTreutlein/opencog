@@ -4,6 +4,8 @@
 
 (use-modules (srfi srfi-1))
 (use-modules (opencog logger))
+(use-modules (opencog distvalue))
+
 
 ;; Given a variable, typed or not, return the corresponding untyped
 ;; variable, that is where its type signature has been stripped of it.

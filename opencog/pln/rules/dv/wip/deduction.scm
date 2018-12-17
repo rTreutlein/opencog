@@ -24,6 +24,8 @@
 
 (use-modules (opencog logger))
 
+(use-modules (opencog distvalue))
+
 ;; Generate the corresponding deduction rule given its link-type and
 ;; the type for each variable (the same for all 3).
 (define (gen-deduction-rule link-type var-type)

@@ -19,6 +19,8 @@
 ;; implicant and implicand bodies.
 ;; -----------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 (define equivalence-scope-distribution-variables
   (VariableList
      (TypedVariableLink

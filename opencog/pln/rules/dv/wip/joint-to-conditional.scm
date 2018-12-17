@@ -12,6 +12,8 @@
 ;----------------------------------------------------------------------
 
 (use-modules (opencog logger))
+(use-modules (opencog distvalue))
+
 
 (define (gen-joint-to-conditional-rule link-type var-type)
   (BindLink

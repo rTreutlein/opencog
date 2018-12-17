@@ -9,6 +9,8 @@
 ;    A
 ;----------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 (define not-introduction-rule
   (BindLink
      (VariableList

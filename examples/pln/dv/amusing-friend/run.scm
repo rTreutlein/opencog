@@ -2,10 +2,10 @@
 
 (load "pln-config.scm")
 
-(cog-execute! implication-full-instantiation-rule)
-(cog-execute! implication-scope-to-implication-rule)
+(my-print (cog-execute! implication-full-instantiation-rule))
+(my-print (cog-execute! implication-scope-to-implication-rule))
 
-(cog-execute! predicate-lambda-evaluation-rule)
+(my-print (cog-execute! predicate-lambda-evaluation-rule))
 
 (define wbf (LambdaLink
           (VariableList
@@ -79,9 +79,10 @@
 
 (define prod (cog-cdv-get-joint fth_dv wbf_dv))
 
-(cog-execute! joint-implication-introduction-rule)
-(cog-execute! joint-to-implication-second-rule)
+(my-print (cog-execute! joint-implication-introduction-rule))
+(my-print (cog-execute! joint-to-implication-second-rule))
 
+#!
 (cog-execute! implication-implicant-conjunction-rule-name)
 
 (cog-execute! and-lambda-factorization-double-implication-rule-name)

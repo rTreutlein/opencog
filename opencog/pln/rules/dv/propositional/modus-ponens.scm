@@ -18,6 +18,8 @@
 ;;
 ;; -----------------------------------------------------------------------------
 
+(use-modules (opencog distvalue))
+
 ;; Generate the corresponding modus ponens rule given its link-type.
 (define (gen-modus-ponens-rule link-type)
   (let* ((A (Variable "$A"))

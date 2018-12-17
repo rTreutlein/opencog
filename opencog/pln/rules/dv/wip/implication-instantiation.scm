@@ -22,6 +22,8 @@
 
 (use-modules (opencog exec))
 (use-modules (opencog logger))
+(use-modules (opencog distvalue))
+
 
 (load "instantiation.scm")
 
