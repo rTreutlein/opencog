@@ -89,7 +89,7 @@
 ;;       (List
 ;;          (Variable "$X")
 ;;          (Variable "$Y"))))
-(cog-execute! predicate-lambda-introduction-rule)
+(cog-execute! predicate-lambda-evaluation-rule)
 
 ;; (4) Infer the TV of the implicand of (2) using
 ;; predicate-lambda-introduction-rule
@@ -493,7 +493,7 @@
 ;;       )
 ;;    )
 ;; )
-(cog-execute! implication-scope-factorization-rule)
+(cog-execute! implication-to-implication-scope-rule)
 
 ;; (11) Infer that Bob may become a friend. Apply the
 ;; implication-full-instantiation-rule on (10).
@@ -567,7 +567,7 @@
 ;;       (Evaluation
 ;;          (Predicate "is-amusing")
 ;;          (Variable "$X"))))
-(cog-execute! equivalence-to-double-implication-forward-rule)
+(cog-execute! equivalence-to-implication-rule)
 
 ;; (15) Factorize the variables scopes in (14) so that implication
 ;; instantiation can work. This shouldn't be necessary in principle
@@ -591,7 +591,7 @@
 ;;       (VariableNode "$X")
 ;;    )
 ;; )
-(cog-execute! implication-scope-factorization-rule)
+(cog-execute! implication-to-implication-scope-rule)
 
 ;; (16) Infer that Bob is amusing. Apply implication-full-instantiation
 ;; on the result of (15).
@@ -601,6 +601,11 @@
 ;; (Evaluation (stv 0.65882355 0.80999994)
 ;;   (Predicate "is-amusing")
 ;;   (Concept "Bob"))
+;;(define isam
+;;(Evaluation
+;;  (Predicate "is-amusing")
+;;  (Concept "Bob"))
+;;)
 (cog-execute! implication-full-instantiation-rule)
 
 ;; (17) Infer that Bob will be an amusing and honest friend. Apply the
@@ -620,4 +625,20 @@
 ;;    (Evaluation
 ;;       (Predicate "is-honest")
 ;;       (Concept "Bob")))
+
+(define res
+(And
+   (Evaluation
+      (Predicate "will-be-friends")
+      (List
+         (Concept "Self")
+         (Concept "Bob")))
+   (Evaluation
+      (Predicate "is-amusing")
+      (Concept "Bob"))
+   (Evaluation
+      (Predicate "is-honest")
+      (Concept "Bob")))
+)
 (cog-execute! and-introduction-grounded-evaluation-rule)
+;;(display res)

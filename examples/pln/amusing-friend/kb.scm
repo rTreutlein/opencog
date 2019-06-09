@@ -322,15 +322,32 @@
 ;; express that in a more convoluted way.
 (define funny-is-loosely-equivalent-to-amusing
 (Equivalence (stv 0.7 0.9)
-   (TypedVariable
-      (Variable "$X")
-      (Type "ConceptNode"))
-   (Evaluation
-      (Predicate "is-funny")
-      (Variable "$X"))
-   (Evaluation
-      (Predicate "is-amusing")
-      (Variable "$X"))))
+    (Lambda
+       (TypedVariable
+          (Variable "$X")
+          (Type "ConceptNode"))
+       (Evaluation
+          (Predicate "is-funny")
+          (Variable "$X")))
+    (Lambda
+       (TypedVariable
+          (Variable "$X")
+          (Type "ConceptNode"))
+       (Evaluation
+          (Predicate "is-amusing")
+          (Variable "$X")))
+))
+
+;;(Equivalence (stv 0.7 0.9)
+;;   (TypedVariable
+;;      (Variable "$X")
+;;      (Type "ConceptNode"))
+;;   (Evaluation
+;;      (Predicate "is-funny")
+;;      (Variable "$X"))
+;;   (Evaluation
+;;      (Predicate "is-amusing")
+;;      (Variable "$X"))))
 
 ;;;;;;;;;;;;;;;
 ;; The Party ;;
