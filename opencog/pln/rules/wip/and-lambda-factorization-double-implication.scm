@@ -77,10 +77,10 @@
   (LocalQuoteLink                   ; Necessary so the AndLink doesn't
                                     ; count as a connective
     (AndLink
-      (QuoteLink (LambdaLink
+      (LocalQuoteLink (LambdaLink
         (VariableNode "$TyVs")
         (VariableNode "$A1")))
-      (QuoteLink (LambdaLink
+      (LocalQuoteLink (LambdaLink
         (VariableNode "$TyVs")
         (VariableNode "$A2"))))))
 
