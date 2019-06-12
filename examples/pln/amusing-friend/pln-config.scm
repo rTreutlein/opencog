@@ -17,7 +17,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-modules (opencog))
-(use-modules (opencog rule-engine))
+(use-modules (opencog ure))
 
 ;; TODO Maybe we can remove that definitely?
 ;; ;XXX This is bad and broken and wrong; one should not try to bypass the

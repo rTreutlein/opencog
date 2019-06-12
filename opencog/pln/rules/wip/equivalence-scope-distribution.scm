@@ -39,7 +39,11 @@
   (ExecutionOutputLink
      (GroundedSchemaNode "scm: equivalence-scope-distribution-formula")
      (ListLink
-        equivalence-scope-distribution-body)))
+        equivalence-scope-distribution-body
+        (VariableNode "$TyVs")
+        (VariableNode "$P")
+        (VariableNode "$Q")
+        )))
 
 (define equivalence-scope-distribution-rule
   (BindLink
@@ -47,12 +51,8 @@
      equivalence-scope-distribution-body
      equivalence-scope-distribution-rewrite))
 
-(define (equivalence-scope-distribution-formula Impl)
+(define (equivalence-scope-distribution-formula Impl SV P Q)
   (let* (
-         (Impl-outgoings (cog-outgoing-set Impl))
-         (SV (car Impl-outgoings))
-         (P (cadr Impl-outgoings))
-         (Q (caddr Impl-outgoings))
          (Impl-tv (cog-tv Impl)))
     (cog-set-tv!
      (EquivalenceLink
