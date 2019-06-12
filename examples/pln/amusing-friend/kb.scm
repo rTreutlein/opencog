@@ -321,7 +321,7 @@
 ;; that a Predicate cannot be declared with a certain type, we need to
 ;; express that in a more convoluted way.
 (define funny-is-loosely-equivalent-to-amusing
-(Equivalence (stv 0.7 0.9)
+(EquivalenceScope (stv 0.7 0.9)
        (TypedVariable
           (Variable "$X")
           (Type "ConceptNode"))
