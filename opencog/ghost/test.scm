@@ -15,36 +15,44 @@
   (cog-logger-set-level! ghost-logger "info"))
 
 ; ----------
-(define ghost-with-ecan #f)
-
-(define-public (ecan-based-ghost-rules flag)
-"
-  For experimental purpose
-  To create GHOST rules that are slimmer.
-"
-  (set! ghost-with-ecan flag)
-)
-
-; ----------
 ; TODO: Remove once experimentation is over
 (define expt-var '())
-; TODO: Should be removed as this is using 'ghost-find-rules',
-; which will be obsolete soon
 (define-public (test-ghost TXT)
 "
-  Try to find (and execute) the matching rules given an input TXT.
+  test-ghost TXT
+
+  (This is just meant to be a quick test for debugging purpose only!)
+
+  Parse the input TXT, evaluate all the GHOST rules in the system, and
+  trigger all of which that are satisfiable.
 "
+  ; Keep the current ghost-loop state
+  (define loop-was-running (psi-running? ghost-component))
+
+  ; Halt the GHOST loop temporarily
+  (ghost-halt)
+
+  ; Reset any previous results
   (set! ghost-result '())
-  (set! ghost-buffer (car (nlp-parse (string-trim TXT))))
+
+  ; Process the input
+  (ghost TXT)
   (process-ghost-buffer)
 
-  (let ((rule (cog-outgoing-set (ghost-find-rules (ghost-get-curr-sent)))))
-    (map (lambda (r) (psi-imply r)) rule)
-    ; not using ghost-last-executed, because getting back to the rule
-    ; from the alias atom is a hassle.
-    (set! expt-var rule)
-  )
+  ; Evaluate all the GHOST rules and trigger those that are satisfiable
+  (for-each
+    (lambda (rule)
+      (if (equal? (psi-satisfiable? rule) (stv 1 1))
+        (begin
+          (process-ghost-rule rule)
+          (psi-imply rule)
+          (set! expt-var rule))))
+    (psi-get-rules ghost-component))
 
+  ; Restore the loop state
+  (if loop-was-running (ghost-run))
+
+  ; Return the result of the last triggered rule
   ghost-result
 )
 
@@ -124,13 +132,6 @@
   (if (null? sent) '() (car sent)))
 
 ; ----------
-(define-public (ghost-get-curr-topic)
-"
-  Get the current topic.
-"
-  (gar (cog-execute! (Get (State ghost-curr-topic (Variable "$x"))))))
-
-; ----------
 (define-public (ghost-currently-processing)
 "
   Get the sentence that is currently being processed.
@@ -170,21 +171,21 @@
 "
   Return the rule with the given label.
 "
-  (get-rule-from-label LABEL))
+  (get-rules-from-label LABEL))
 
 ; ----------
 (define-public (ghost-rule-av LABEL)
 "
   Given the label of a rule in string, return the AV of the rule with that label.
 "
-  (cog-av (get-rule-from-label LABEL)))
+  (map cog-av (get-rules-from-label LABEL)))
 
 ; ----------
 (define-public (ghost-rule-tv LABEL)
 "
   Given the label of a rule in string, return the TV of the rule with that label.
 "
-  (cog-tv (get-rule-from-label LABEL)))
+  (map cog-tv (get-rules-from-label LABEL)))
 
 ; ----------
 (define-public (ghost-show-rule-status LABEL)
@@ -192,32 +193,32 @@
   Given the label of a rule in string, return both the STI and TV of the rule
   with that label.
 "
-  (define rule (get-rule-from-label LABEL))
-  (define next-responder (cog-value rule ghost-next-responder))
-  (define next-rejoinder (cog-value rule ghost-next-rejoinder))
+  (define rule (get-rules-from-label LABEL))
   (if (not (null? rule))
     (format #t (string-append
       "AV = ~a\n"
       "TV = ~a\n"
       "Satisfiability: ~a\n"
       "Time last executed: ~a\n"
-      "Next responder: ~a\n"
+      "Next reactive rule: ~a\n"
       "Next rejoinder: ~a\n")
-      (cog-av rule)
-      (cog-tv rule)
+      (map cog-av rule)
+      (map cog-tv rule)
       (every
-        (lambda (x) (> (cdr (assoc 'mean (cog-tv->alist (cog-evaluate! x)))) 0))
-        (psi-get-context rule))
-      (if (null? (cog-value rule ghost-time-last-executed))
+        (lambda (x) (> (cog-tv-mean (cog-evaluate! x)) 0))
+        (psi-get-context (car rule)))
+      (if (null? (cog-value (car rule) ghost-time-last-executed))
         "N.A."
-        (strftime "%D %T" (localtime (inexact->exact
-          (car (cog-value->list (cog-value rule ghost-time-last-executed)))))))
-      (if (null? next-responder)
+        (strftime "%D %T" (localtime (inexact->exact (round
+          (car (cog-value->list (cog-value (car rule) ghost-time-last-executed))))))))
+      (if (null? (cog-value (car rule) ghost-next-reactive-rule))
         (list)
-        (append-map psi-rule-alias (cog-value->list next-responder)))
-      (if (null? next-rejoinder)
+        (append-map psi-rule-alias
+          (cog-value->list (cog-value (car rule) ghost-next-reactive-rule))))
+      (if (null? (cog-value (car rule) ghost-next-rejoinder))
         (list)
-        (append-map psi-rule-alias (cog-value->list next-rejoinder))))))
+        (append-map psi-rule-alias
+          (cog-value->list (cog-value (car rule) ghost-next-rejoinder)))))))
 
 ; ----------
 (define-public (ghost-show-status)
@@ -320,13 +321,13 @@
   ghost-set-rep-sti-boost VAL
 
   Set how much of a default stimulus will be given to
-  the next responder after triggering the previous
+  the next reactive rule after triggering the previous
   one in the sequence.
 "
   (if (number? VAL)
-    (set! responder-sti-boost VAL)
+    (set! reactive-rule-sti-boost VAL)
     (cog-logger-warn ghost-logger
-      "The responder STI boost has to be a numberic value!"))
+      "The reactive rule STI boost has to be a numberic value!"))
 )
 
 ; ----------

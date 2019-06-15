@@ -38,8 +38,9 @@
 ; Copyright (c) 2008, 2009, 2013 Linas Vepstas <linasvepstas@gmail.com>
 ;
 
+(use-modules (ice-9 regex))
 (use-modules (srfi srfi-1))
-(use-modules (opencog))
+(use-modules (ice-9 textual-ports)) ; For get-string-all
 
 ; --------------------------------------------------------------------
 (define-public (parse-get-relex-relations parse-node)
@@ -462,6 +463,12 @@
 )
 
 ; ---------------------------------------------------------------------
+; User-modifiable config parameters.
+; We'll keep these here for backwards-compat, for now, but it is
+; recommended that (use-relex-server HOST PORT) be used instead...
+(define-public relex-server-host "127.0.0.1")
+(define-public relex-server-port 4444)
+
 (define-public (use-relex-server HOSTNAME PORTNUM)
 "
   use-relex-server HOSTNAME PORTNUM
@@ -496,6 +503,35 @@
 		#t
 		(lambda () (use-relex-server "relex" 4444))
 		(lambda (key . rest) relex-server-host))
+)
+
+(define-public (relex-reachable?)
+"
+  relex-reachable?
+
+  Returns #t if the relex server is reachable, #f either wise. This can be
+  used as a circuit breaker while writing unit or integration tests.
+"
+  (define result "")
+  (define s (socket PF_INET SOCK_STREAM 0))
+  (define connected
+    (catch #t
+      (lambda () (connect s AF_INET (inet-pton AF_INET relex-server-host)
+        relex-server-port))
+      (lambda (key . args) #f)))
+
+  (if connected
+    (begin
+      ; An explicit port-encoding is needed by guile-2.0.9. Doesn't hurt for
+      ; higher versions as well.
+      (set-port-encoding! s "utf-8")
+      ; Send whitespace so as to not pollute atomspace while checking
+      (display " \n" s)
+      (set! result (get-string-all s))
+      (close-port s)
+      (if (string-match "; NO PARSES\n" result) #t #f))
+    #f
+  )
 )
 
 ; =============================================================

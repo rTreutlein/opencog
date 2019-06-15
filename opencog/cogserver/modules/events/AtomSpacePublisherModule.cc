@@ -35,11 +35,11 @@
 #include <opencog/util/Logger.h>
 #include <opencog/util/tbb.h>
 
-#include <opencog/atoms/proto/NameServer.h>
+#include <opencog/atoms/atom_types/NameServer.h>
 
-#include <opencog/truthvalue/ProbabilisticTruthValue.h>
-#include <opencog/truthvalue/FuzzyTruthValue.h>
-#include <opencog/truthvalue/IndefiniteTruthValue.h>
+#include <opencog/atoms/truthvalue/ProbabilisticTruthValue.h>
+#include <opencog/atoms/truthvalue/FuzzyTruthValue.h>
+#include <opencog/atoms/truthvalue/IndefiniteTruthValue.h>
 
 #include <opencog/atomspace/AtomSpace.h>
 #include <opencog/atoms/base/Link.h>
@@ -189,8 +189,8 @@ void AtomSpacePublisherModule::proxy()
 	zmq::socket_t pub(*context, ZMQ_PUB);
 	pub.setsockopt(ZMQ_SNDHWM, &HWM, sizeof(HWM));
 
-	std::string zmq_event_port = config().get("ZMQ_EVENT_PORT");
-	bool zmq_use_public_ip = config().get_bool("ZMQ_EVENT_USE_PUBLIC_IP");
+	std::string zmq_event_port = config().get("ZMQ_EVENT_PORT", "5563");
+	bool zmq_use_public_ip = config().get_bool("ZMQ_EVENT_USE_PUBLIC_IP", true);
 	std::string zmq_ip;
 	if (zmq_use_public_ip)
 	{

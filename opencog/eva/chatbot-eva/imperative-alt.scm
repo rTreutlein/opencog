@@ -34,7 +34,7 @@
 ; and must be matched precisely, while others can be loose, and roughly
 ; matched. These are part of the scoring system. Its not clear how to
 ; associate the scores with the different parts of the pattern. Are they
-; truth values?  Do we need the protoatoms for this?
+; truth values?  Do we need the protoatoms[now renamed values] for this?
 ;
 ; Fuzzy matching does give us some ability of maybe learn.  If Eva
 ; hears  "look up at the sky", and she knows "look up" as grounded
@@ -55,7 +55,7 @@
 ; possible direction to explore.
 
 ;--------------------------------------------------------------------
-(use-modules (opencog) (opencog nlp) (opencog query) (opencog exec))
+(use-modules (opencog) (opencog nlp) (opencog exec))
 (use-modules (opencog nlp fuzzy))
 (use-modules (opencog nlp relex2logic))
 

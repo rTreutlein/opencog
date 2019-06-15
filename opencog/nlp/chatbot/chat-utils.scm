@@ -11,7 +11,7 @@
 (use-modules (ice-9 threads)  ; needed for par-map
              (srfi srfi-1)
              (opencog)
-             (opencog rule-engine)
+             (opencog ure)
              (opencog nlp)
              (opencog nlp fuzzy)
              (opencog nlp microplanning)
@@ -48,8 +48,7 @@
 
   Returns the time, in seconds, at which the SentenceNode SENT was parsed.
 "
-  (string->number (cog-name (car
-    (cog-chase-link 'AtTimeLink 'TimeNode sent))))
+  (string->number (cog-name (car (cog-chase-link 'AtTimeLink 'TimeNode sent))))
 )
 
 (define-public (get-last-said-sent)
@@ -73,7 +72,7 @@
     (define last-time 0)
     (define result '())
     (define (last-sent sent)
-        (let ((sent-time (string->number (cog-name (gar sent)))))
+      (let ((sent-time (string->number (cog-name (gar sent)))))
             (if (>= sent-time last-time)
                 (begin
                     (set! last-time sent-time)
@@ -114,7 +113,8 @@
 
     (define result '())
     (define (last-sent sent)
-        (let ((sent-time (string->number (cog-name (gar sent)))))
+        ; NOTE cog-number doesn't work with TimeNodes
+        (let ((sent-time  (string->number (cog-name (gar sent)))))
             (if (>= sent-time from-time)
                 (set! result (append result (list (gdr sent))))
             )

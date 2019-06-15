@@ -17,22 +17,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-modules (opencog))
-(use-modules (opencog rule-engine))
+(use-modules (opencog ure))
 
 ;XXX This is bad and broken and wrong; one should not try to bypass the
 ; scheme module system like this, its just asking for carpet burns.
 (load-from-path "opencog/pln/utilities.scm")
-(load-from-path "opencog/rule-engine/rule-engine-utils.scm")
+(load-from-path "opencog/ure/ure-utils.scm")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define PLN rule-based system ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define pln-rbs (ConceptNode "PLN"))
-(InheritanceLink
-   pln-rbs
-   (ConceptNode "URE")
-)
 
 ;; Define pln-fc and pln-bc for convenience 
 (define (pln-fc source) (cog-fc pln-rbs source))

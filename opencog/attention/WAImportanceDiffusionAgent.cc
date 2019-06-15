@@ -26,9 +26,9 @@
 
 #include <opencog/util/Config.h>
 #include <opencog/atomspace/AtomSpace.h>
-#include <opencog/attention/atom_types.h>
-#include <opencog/attentionbank/AttentionBank.h>
-#include <opencog/attentionbank/StochasticImportanceDiffusion.h>
+#include <opencog/attentionbank/types/atom_types.h>
+#include <opencog/attentionbank/bank/AttentionBank.h>
+#include <opencog/attentionbank/bank/StochasticImportanceDiffusion.h>
 
 #include "AttentionUtils.h"
 #include "WAImportanceDiffusionAgent.h"

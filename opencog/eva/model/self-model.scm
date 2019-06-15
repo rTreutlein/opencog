@@ -17,7 +17,7 @@
 ;
 ; Example usage:
 ;; Load the needed modules.
-; (use-modules (opencog) (opencog query) (opencog exec))
+; (use-modules (opencog) (opencog exec))
 ; (use-modules (opencog atom-types) (opencog movement))
 ; (use-modules (opencog eva-model))
 ;
@@ -522,8 +522,8 @@
 			)))
 
 (define-public (is_nn_equal_cn? number-node concept-node)
-	(if (equal? (string->number (cog-name number-node))
-			(exact->inexact (string->number (cog-name concept-node))))
+	(if (equal? (cog-number number-node)
+			(exact->inexact (cog-number concept-node)))
 		(stv 1 1)
 		(stv 0 1)
 	)
@@ -1058,7 +1058,7 @@ proper atomese.
 		(for-each (lambda (x) (set! result
 			(assoc-set! result
 				(psi-suffix-str (cog-name (car (psi-rule-alias x))))
-				(cog-stv-strength x))))
+				(cog-mean x))))
 			rules
 		)
 		result

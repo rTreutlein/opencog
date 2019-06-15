@@ -23,11 +23,10 @@
 
 #include <opencog/util/Logger.h>
 #include <opencog/atomspace/AtomSpace.h>
-#include <opencog/truthvalue/SimpleTruthValue.h>
+#include <opencog/atoms/truthvalue/SimpleTruthValue.h>
 #include <opencog/guile/SchemeEval.h>
-#include <opencog/query/BindLinkAPI.h>
-#include <opencog/rule-engine/forwardchainer/ForwardChainer.h>
-#include <opencog/rule-engine/backwardchainer/BackwardChainer.h>
+#include <opencog/ure/forwardchainer/ForwardChainer.h>
+#include <opencog/ure/backwardchainer/BackwardChainer.h>
 
 #include <cxxtest/TestSuite.h>
 
@@ -80,12 +79,13 @@ void MOSESPLNSynergyUTest::tearDown()
 
 void MOSESPLNSynergyUTest::setUp()
 {
-	string cur_pp_dir = string(PROJECT_SOURCE_DIR),
+	std::string cur_pp_dir = std::string(PROJECT_SOURCE_DIR),
 		cur_dir = cur_pp_dir + "/tests/pln";
-	vector<string> load_paths = {cur_pp_dir, cur_dir};
-	for (string& p : load_paths)
+	std::vector<std::string> load_paths = {cur_pp_dir, cur_dir};
+	for (std::string& p : load_paths)
 	{
-		string eval_str = string("(add-to-load-path \"") + p + string("\")");
+		std::string eval_str =
+			std::string("(add-to-load-path \"") + p + std::string("\")");
 		eval.eval(eval_str);
 	}
 

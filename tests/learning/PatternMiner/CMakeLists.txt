@@ -1,6 +1,0 @@
-IF (HAVE_ATOMSPACE)
-	ADD_CXXTEST(PatternMinerUTest)
-	TARGET_LINK_LIBRARIES(PatternMinerUTest
-		PatternMiner
-	)
-ENDIF (HAVE_ATOMSPACE)

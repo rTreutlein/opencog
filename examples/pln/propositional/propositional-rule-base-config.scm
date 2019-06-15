@@ -9,17 +9,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-modules (opencog))
-(use-modules (opencog rule-engine))
+(use-modules (opencog ure))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define a rule-based system ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define propositional-rule-base (ConceptNode "propositional-rule-base"))
-(InheritanceLink
-   propositional-rule-base
-   (ConceptNode "URE")
-)
 
 ;; Define conj-bc for convenience
 (define (prop-bc target) (cog-bc propositional-rule-base target))

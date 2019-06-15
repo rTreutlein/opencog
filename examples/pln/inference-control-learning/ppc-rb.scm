@@ -6,16 +6,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-modules (opencog))
-(use-modules (opencog rule-engine))
+(use-modules (opencog ure))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define post-process corpus rule-base system ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define ppc-rbs (ConceptNode "post-process-corpus-rule-base"))
-(InheritanceLink
-   ppc-rbs
-   (ConceptNode "URE"))
 
 ;; Define ppc-bc for convenience
 (define (ppc-bc . args)

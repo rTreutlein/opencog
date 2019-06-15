@@ -30,14 +30,14 @@
 #include <opencog/util/mt19937ar.h>
 #include <opencog/util/platform.h>
 
-#include <opencog/atomutils/FollowLink.h>
-#include <opencog/atomutils/Neighbors.h>
+#include <opencog/neighbors/FollowLink.h>
+#include <opencog/neighbors/Neighbors.h>
 #include <opencog/atoms/base/Link.h>
 
 #include <opencog/atomspace/AtomSpace.h>
 #include <opencog/cogserver/server/CogServer.h>
-#include <opencog/attention/atom_types.h>
-#include <opencog/attentionbank/AttentionBank.h>
+#include <opencog/attentionbank/types/atom_types.h>
+#include <opencog/attentionbank/bank/AttentionBank.h>
 
 #include "ImportanceDiffusionBase.h"
 #include "AttentionStat.h"

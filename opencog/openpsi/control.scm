@@ -11,7 +11,7 @@
 
 (use-modules (ice-9 receive))
 
-(use-modules (opencog) (opencog exec) (opencog query))
+(use-modules (opencog) (opencog exec))
 
 (load "demand.scm")
 (load "rule.scm")
@@ -47,7 +47,7 @@
 ; It controls the weight of other demands through the updater associated with
 ; it. It shouldn't be skipped.
 ; NOTE: This is a hack b/c once the weight of the rules is separated into atom
-; or protoatom wrapped in a StateLink then (or somehting like that) then it
+; or protoatom[now renamed value] wrapped in a StateLink then (or somehting like that) then it
 ; would be easier to update.
 (define psi-controller-demand (psi-demand "controller"))
 
@@ -126,7 +126,7 @@
 "
     (MemberLink psi-rule psi-controller-demand)
 
-    (psi-rule-set-atomese-weight psi-rule (cog-tv-mean (cog-tv psi-rule)))
+    (psi-rule-set-atomese-weight psi-rule (cog-mean psi-rule))
 
     (psi-rule-set-alias! psi-rule name)
 
@@ -190,8 +190,8 @@
         (let ((result (psi-rule-atomese-weight rule)))
             (if (not (null? result))
                 (cog-set-tv! rule
-                    (stv (string->number (cog-name (car result)))
-                         (cog-tv-confidence (cog-tv rule))))
+                    (stv (cog-number (car result))
+                         (cog-confidence rule)))
             )
         ))
 

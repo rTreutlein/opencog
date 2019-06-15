@@ -1,7 +1,11 @@
-;; Rule to specialize a pattern by composing it with a shallow
-;; abstraction, which can be pattern with just one link and all
-;; variables as outgoings, a constant, or a variable, and checks that
-;; it has enough support.
+;; Note: For now shallow specialization rule is used instead of the
+;; generic specialization rule. Using shallow specialization allows to
+;; perform in one step shallow abstraction and specialization.
+;;
+;; Rule to specialize a pattern by composing it with an abstraction,
+;; which can be pattern with just one link and all variables as
+;; outgoings, a constant, or a variable, and checks that it has enough
+;; support.
 ;;
 ;; Given g with arity n and with support ms, and f, specialize g by
 ;; composing it with f over one of its variables, xi.
@@ -18,7 +22,7 @@
 ;;     <texts>
 ;;     <ms>
 ;; Evaluation <tv2>
-;;   Predicate "shallow-abstraction"
+;;   Predicate "abstraction"
 ;;   List
 ;;     List
 ;;       <x1>
@@ -91,7 +95,7 @@
          (vardecl (VariableList g-decl texts-decl ms-decl xs-f-decl))
          ;; Clauses
          (minsup-g (minsup-eval g texts ms))
-         (shabs-eval (shallow-abstraction-eval xs-f minsup-g))
+         (shabs-eval (abstraction-eval xs-f minsup-g))
          ;; Make sure the pattern has the minimum support
          (precond-1 (absolutely-true-eval minsup-g))
          (precond-2 (absolutely-true-eval shabs-eval))
@@ -122,13 +126,13 @@
              (gf (cog-outgoing-atom con-minsup-args 0))
              (texts (cog-outgoing-atom con-minsup-args 1))
              (ms-atom (cog-outgoing-atom con-minsup-args 2))
-             (ms (inexact->exact (atom->number ms-atom)))
              (conclusion-tv (if (and (tv->bool pre-minsup-pred-tv)
-                                     ;; The lazyness of and allows to
-                                     ;; avoid testing g.f support if g
-                                     ;; doesn't have enough support
-                                     ;; TODO: do you really need this?
-                                     (enough-support? gf texts ms))
+                                     ;; The lazyness of 'and' allows
+                                     ;; to avoid testing g.f support
+                                     ;; if g doesn't have enough
+                                     ;; support TODO: do you really
+                                     ;; need this?
+                                     (cog-enough-support? gf texts ms-atom))
                                 ;; Both g and g,f have enough support
                                 (stv 1 1)
                                 ;; f.g doesn't have enough support

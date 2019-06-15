@@ -16,7 +16,7 @@
   #:use-module (opencog nlp sureal)
   #:use-module (opencog openpsi)
   #:use-module (opencog pln)
-  #:use-module (opencog rule-engine)
+  #:use-module (opencog ure)
   #:use-module (opencog ghost)
   #:export (
     ; -------------------- Perception -------------------- ;
@@ -37,32 +37,26 @@
 
     ; -------------------- Predicates -------------------- ;
     ; Perceptual predicates
-    word_perceived
+    is_word_perceived
 
     ; Perceptual predicates for a talking face
-    new_talking
-    talking
-    end_talking
-    not_talking
+    is_talking
+    is_not_talking
 
     ; Perceptual predicates for visibility of a face
-    new_face
-    face
-    end_face
+    is_face_perceived
 
     ; Perceptual predicates for emotion of a face
-    new_emotion
-    emotion
-    end_emotion
+    is_emotion
 
     ; Time related predicates
-    after_min
+    is_after_min
 
     ; Source predicates
-    any_answer
+    is_answer_received
 
     ; self-model
-    neck_dir
+    is_neck_direction
 
     ; -------------------- Schemas -------------------- ;
     animation
@@ -83,8 +77,8 @@
     print-by-action-logger
     fallback_on
     shutup
-    gaze_at
-    gaze_at_cancel
+    look
+    look_cancel
     blink
     blink_cancel
     emote
@@ -96,6 +90,18 @@
     saccade_cancel
     sing
     get_neck_dir
+    get_valence
+    increase_valence
+    decrease_valence
+    neutralize_valence
+    get_arousal
+    increase_arousal
+    decrease_arousal
+    neutralize_arousal
+    increase_voice_speed
+    decrease_voice_speed
+    increase_voice_volume
+    decrease_voice_volume
 
     ; Source schemas
     send_query
@@ -108,6 +114,11 @@
     ask-duckduckgo
     ask-wolframalpha
     ask-pln
+
+    ; Stochastic Question
+    send_stochastic_question
+    any_stochastic_question
+    get_stochastic_question
 
     ; -------------------- Utilities -------------------- ;
     set-dti!
@@ -280,7 +291,7 @@
 )
 
 (define (record-perception model new-conf)
-  (let ((old-conf (cog-tv-confidence (cog-tv model)))
+  (let ((old-conf (cog-confidence model))
     (time (FloatValue (current-time-us))))
 
     (if percep (begin
@@ -605,7 +616,7 @@
 ; It is better to find the product of the strength and confidence but for now
 ; confidence is used as the default stv for new atoms is (stv 1 0), so
 ; need to waste cpu cycles.
-  (let ((conf (cog-tv-confidence (cog-tv model))))
+  (let ((conf (cog-confidence model)))
     (if (true-value? conf)
       (stv 1 1)
       (stv 0 1)
@@ -989,8 +1000,10 @@
 ; --------------------------------------------------------------
 ; Because macros require all the bindings used before expansion load
 ; the files last.
+(load "procedures/focus-set.scm")
 (load "procedures/predicates.scm")
 (load "procedures/schemas.scm")
+(load "procedures/sq-bind.scm")
 ; TODO: move genric steps to the pln module
 ;(load "procedures/pln-reasoner.scm")
 ;(load "procedures/pln-trail-3.scm")

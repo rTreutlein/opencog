@@ -11,9 +11,7 @@ ADD_LIBRARY (spacetime-types SHARED
 )
 
 TARGET_LINK_LIBRARIES(spacetime-types
-	${ATOMSPACE_atomcore_LIBRARY}
-	${ATOMSPACE_atombase_LIBRARY}
-	${ATOMSPACE_atomproto_LIBRARY}
+	${ATOMSPACE_LIBRARIES}
 )
 
 ADD_DEPENDENCIES(spacetime-types spacetime_atom_types)
@@ -22,12 +20,9 @@ INSTALL (TARGETS spacetime-types
 	LIBRARY DESTINATION "lib${LIB_DIR_SUFFIX}/opencog"
 )
 
-INSTALL (FILES
+ADD_GUILE_MODULE (FILES
 	spacetime.scm
-	DESTINATION "${DATADIR}/scm/opencog"
-)
-
-INSTALL (FILES
 	${CMAKE_CURRENT_BINARY_DIR}/spacetime_types.scm
-	DESTINATION "${DATADIR}/scm/opencog/spacetime"
+	MODULE_DESTINATION "${GUILE_SITE_DIR}/opencog/spacetime"
+	DEPENDS spacetime_atom_types
 )

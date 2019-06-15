@@ -82,43 +82,12 @@
     (gen-deduction-rule SubsetLink var-type)))
 
 (define (deduction-formula conclusion . premises)
-    (if (= (length premises) 2)
-        (let*
-            ((AC conclusion)
-             (AB (list-ref premises 0))
-             (BC (list-ref premises 1))
-             (key (PredicateNode"CDV"))
-             (dvAB (cog-value AB key))
-             (dvBC (cog-value BC key))
-            )
-            (if (or (equal? dvAB '())
-                    (equal? dvBC '())
-                )
-              ;;(ConceptNode "TV")
-              ;;(ConceptNode "DV")
-              (deduction-formula-tv AC AB BC)
-              (deduction-formula-dv AC key dvAB dvBC)
-            )
-        )
-    )
-)
-
-(define curry2 (lambda (f) (lambda (arg1) (lambda (arg2) (f arg1 arg2)))))
-
-(define (deduction-formula-dv AC key dvAB dvBC)
+  (if (= (length premises) 2)
     (let*
-        ((conds (cog-cdv-get-conditions dvAB))
-         (unconds (cog-cdv-get-unconditionals dvAB))
-         (x (map ((curry2 cog-cdv-get-unconditional) dvBC) unconds))
-         (cdv (cog-new-cdv conds x))
-        )
-        (cog-set-value! AC key cdv)
-    )
-)
-
-(define (deduction-formula-tv AC AB BC)
-    (let*
-        ((sA (cog-mean (gar AB)))
+        ((AC conclusion)
+         (AB (list-ref premises 0))
+         (BC (list-ref premises 1))
+         (sA (cog-mean (gar AB)))
          (cA (cog-confidence (gar AB)))
          (sB (cog-mean (gar BC)))
          (cB (cog-confidence (gar BC)))
@@ -182,7 +151,7 @@
                                               ;; annoying in the
                                               ;; current hacky
                                               ;; situation.
-                    (cog-merge-hi-conf-tv! AC (stv sAC cAC))))))))
+                    (cog-merge-hi-conf-tv! AC (stv sAC cAC)))))))))
 
 ;; Name the rules
 (define deduction-inheritance-rule-name

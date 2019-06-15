@@ -26,14 +26,14 @@
 
 #include <opencog/util/Config.h>
 #include <opencog/util/mt19937ar.h>
-#include <opencog/attention/atom_types.h>
+#include <opencog/attentionbank/types/atom_types.h>
 
 #include <opencog/atomspace/AtomSpace.h>
 #include <opencog/atoms/base/Link.h>
 #include <opencog/atoms/base/Node.h>
-#include <opencog/attentionbank/AttentionBank.h>
-#include <opencog/truthvalue/SimpleTruthValue.h>
-#include <opencog/atomutils/Neighbors.h>
+#include <opencog/attentionbank/bank/AttentionBank.h>
+#include <opencog/atoms/truthvalue/SimpleTruthValue.h>
+#include <opencog/neighbors/Neighbors.h>
 #include "HebbianUpdatingAgent.h"
 
 //#define DEBUG

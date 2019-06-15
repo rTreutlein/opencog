@@ -1,9 +1,8 @@
 (use-modules (srfi srfi-1))
-(use-modules (ice-9 receive))
 
 (use-modules (opencog))
 (use-modules (opencog exec))
-(use-modules (opencog rule-engine))
+(use-modules (opencog ure))
 
 ; ----------------------------------------------------------------------------
 (define-public (pln-load-rules RULE-TYPE)
@@ -24,152 +23,166 @@
   (load-from-path (string-append "opencog/pln/rules/" RULE-TYPE ".scm"))
 )
 
-; ----------------------------------------------------------------------------
-(define-public (filter-for-pln a-list)
+(define-public (pln-load-meta-rules RULE-TYPE)
 "
-  Takes a list of atoms and return a SetLink containing atoms that pln can
-  reason on. Some of the patterns that make the returned SetLink are,
-          (Inheritance
-              (TypeChoice
-                  (Type \"ConceptNode\")
-                  (Type \"SatisfyingSetLink\")
-                  (Type \"SatisfyingSetScopeLink\"))
-              (TypeChoice
-                  (Type \"ConceptNode\")
-                  (Type \"SatisfyingSetLink\")
-                  (Type \"SatisfyingSetScopeLink\")))
-          (Evaluation
-              (Type \"PredicateNode\")
-              (ListLink
-                  (Type \"ConceptNode\")
-                  (Type \"ConceptNode\")))
-          (Evaluation
-              (Type \"PredicateNode\")
-              (ListLink
-                  (Type \"ConceptNode\")))
-          (Member
-              (TypeChoice
-                  (Type \"ConceptNode\")
-                  (Type \"SatisfyingSetLink\")
-                  (Type \"SatisfyingSetScopeLink\"))
-              (TypeChoice
-                  (Type \"ConceptNode\")
-                  (Type \"SatisfyingSetLink\")
-                  (Type \"SatisfyingSetScopeLink\")))
-          (Implication
-              (Type \"PredicateNode\")
-              (Type \"PredicateNode\"))
+  pln-load-meta-rules RULE-TYPE
 
-  a-list:
-  - This is a list of atoms, for example a list of r2l outputs
+  Loads the different variations of the meta rules known by
+  RULE-TYPE. A RULE-TYPE may include the categorization of the rule. For
+  example, 'predicate/conditional-full-instantiation' implies that the
+  rule to be loaded is the term-logic deduction rule.
 "
-; TODO: Move this to an (opencog pln) module, when there is one.
-    (define filter-in-pattern
-        (ScopeLink
-            (TypedVariable
-                (Variable "$x")
-                (TypeChoice
-                    (Signature
-                        (Inheritance
-                            (TypeChoice
-                                (Type "ConceptNode")
-                                (Type "SatisfyingSetLink")
-                                (Type "SatisfyingSetScopeLink"))
-                            (TypeChoice
-                                (Type "ConceptNode")
-                                (Type "SatisfyingSetLink")
-                                (Type "SatisfyingSetScopeLink"))))
-                    (Signature
-                        (Implication
-                            (Type "PredicateNode")
-                            (Type "PredicateNode")))
-                    (Signature
-                        (Member
-                            (TypeChoice
-                                (Type "ConceptNode")
-                                (Type "SatisfyingSetLink")
-                                (Type "SatisfyingSetScopeLink"))
-                            (TypeChoice
-                                (Type "ConceptNode")
-                                (Type "SatisfyingSetLink")
-                                (Type "SatisfyingSetScopeLink"))))
-                    (Signature
-                        (Evaluation
-                            (Type "PredicateNode")
-                            (ListLink
-                                (Type "ConceptNode")
-                                (Type "ConceptNode"))))
-                    (Signature
-                        (Evaluation
-                            (Type "PredicateNode")
-                            (ListLink
-                                (Type "ConceptNode"))))
-                ))
-            ; Return atoms with the given signatures
-            (Variable "$x")
-        ))
+  ; NOTE:
+  ; 1. If a rule needs formula defined in formulas.scm then the rule file
+  ;    should load it.
+  ; 2. Rule files are assumed to be named as "RULE-TYPE.scm"
+  ; 3. load-from-path is used so as to be able to use build_dir/opencog/scm,
+  ;    even when the module isn't installed.
 
-    (define filter-from (SetLink  a-list))
-
-    ; Do the filtering
-    (define result (cog-execute! (MapLink filter-in-pattern filter-from)))
-
-    ; Delete the filter-from SetLink and its encompasing MapLink.
-    (cog-delete-recursive filter-from)
-
-    result
+  (load-from-path (string-append "opencog/pln/meta-rules/" RULE-TYPE ".scm"))
 )
 
-; ----------------------------------------------------------------------------
-(define (simple-forward-step RB-NODE FOCUS-SET)
-"
-  Makes a single forward step using the rules in rulebase RB-NODE over the
-  whole FOCUS-SET.
-"
-; NOTE: It is simple b/c it doesn't try to restrict inference over a
-; certain source atoms.
-; TODO: Move logic to ForwardChainer.
-    (let* ((result (cog-fc RB-NODE (Set) #:focus-set (Set FOCUS-SET)))
-           (result-list (cog-outgoing-set result)))
-        ; Cleanup
-        (cog-delete result)
+(define-public pln-atomspace (cog-new-atomspace))
 
-        ; If there are multiple results for application of a rule, the
-        ; result will have a ListLink of the results. Get the results out
-        ; of the ListLinks helps in debugging and filtering-for-pln/sureal
-        (receive (list-links other)
-            (partition
-                (lambda (x) (equal? 'ListLink (cog-type x))) result-list)
+(define-public (pln-mk-rb)
+"
+  Create
 
-            (let ((partial-results (append-map cog-outgoing-set list-links)))
-                ; Cleanup. NOTE: Cleanup is not done on `other` b/c, it might
-                ; contain atoms which are part of r2l outputs, which if deleted
-                ; recursively might affect the nlp pipline.
-                (map cog-delete-recursive list-links)
-                (delete-duplicates (append partial-results other))
-            )
-        )
-    )
+  (Concept \"pln-rb\")
+"
+  (cog-new-node 'ConceptNode "pln-rb")
 )
 
-; ----------------------------------------------------------------------------
-(define-public (simple-forward-chain RB-NODE FOCUS-SET STEPS)
+(define-public (pln-rb)
 "
-  Applys the rules in rulebase RB-NODE over the whole FOCUS-SET, STEPS times.
-  Before each recursive step occurs, the FOCUS-SET and outputs of current-step
-  are merged and passed as the new FOCUS-SET.
+  Get
 
-  Returns a list containing both the FOCUS-SET and the inference results.
+  (Concept \"pln-rb\")
+
+  from pln-atomspace
 "
-    ; TODO: Add an optional argument for filtering results b/n steps using.
-    ; Create the next focus-set.
-    (define (create-next-fs prev-fs chaining-result)
-            (delete-duplicates (append chaining-result prev-fs)))
+  (define current-as (cog-set-atomspace! pln-atomspace))
+  (define pln-atomspace-rb (pln-mk-rb))
+  (cog-set-atomspace! current-as)
+  pln-atomspace-rb)
 
-    (if (equal? 1 STEPS)
-        (create-next-fs  FOCUS-SET (simple-forward-step RB-NODE FOCUS-SET))
-        (simple-forward-chain RB-NODE
-            (create-next-fs FOCUS-SET (simple-forward-step RB-NODE FOCUS-SET))
-            (- STEPS 1))
-    )
-)
+(define-public (pln-load)
+"
+  Load and configure the PLN rule base.
+
+  For now only one rule base is offered, this function will likely
+  take optional arguments to load subsets or supersets of PLN.
+"
+  ;; Switch to PLN atomspace
+  (define current-as (cog-set-atomspace! pln-atomspace))
+
+  ;; Load rule files
+  (pln-load-rules "term/deduction")
+  (pln-load-rules "propositional/modus-ponens")
+  (pln-load-rules "propositional/contraposition")
+  (pln-load-rules "propositional/fuzzy-conjunction-introduction")
+  (pln-load-rules "propositional/fuzzy-disjunction-introduction")
+
+  ;; Load meta rule files
+  (pln-load-meta-rules "predicate/conditional-full-instantiation")
+  (pln-load-meta-rules "predicate/conditional-partial-instantiation")
+
+  ;; Attach rules to PLN rule-base
+  (ure-add-rules-by-names
+   (pln-mk-rb)
+   (list
+    ;; Deduction
+    "deduction-implication-rule"
+    "deduction-subset-rule"
+    "deduction-inheritance-rule"
+
+    ;; Modus Ponens
+    "modus-ponens-inheritance-rule"
+    "modus-ponens-implication-rule"
+    "modus-ponens-subset-rule"
+
+    ;; Contraposition
+    "crisp-contraposition-implication-scope-rule"
+    "contraposition-implication-rule"
+    "contraposition-inheritance-rule"
+
+    ;; Fuzzy Conjunction Introduction
+    "fuzzy-conjunction-introduction-1ary-rule"
+    "fuzzy-conjunction-introduction-2ary-rule"
+    "fuzzy-conjunction-introduction-3ary-rule"
+    "fuzzy-conjunction-introduction-4ary-rule"
+    "fuzzy-conjunction-introduction-5ary-rule"
+
+    ;; Fuzzy Disjunction Introduction
+    "fuzzy-disjunction-introduction-1ary-rule"
+    "fuzzy-disjunction-introduction-2ary-rule"
+    "fuzzy-disjunction-introduction-3ary-rule"
+    "fuzzy-disjunction-introduction-4ary-rule"
+    "fuzzy-disjunction-introduction-5ary-rule"
+
+    ;; Conditional Full Instantiation
+    "conditional-full-instantiation-implication-scope-meta-rule"
+    "conditional-full-instantiation-implication-meta-rule"
+    "conditional-full-instantiation-inheritance-meta-rule"))
+
+  ;; Switch back to previous space
+  (cog-set-atomspace! current-as)
+
+  ;; Avoid confusing the user with a return value
+  *unspecified*)
+
+(define-public (pln-prt-atomspace)
+"
+  Print all PLN rules loaded in pln-atomspace
+"
+  (define current-as (cog-set-atomspace! pln-atomspace))
+  (cog-prt-atomspace)
+  (cog-set-atomspace! current-as)
+
+  ;; Avoid confusing the user with a return value
+  *unspecified*)
+
+(define-public (pln-weighted-rules)
+"
+  List all weighted rules in the PLN rule base.
+"
+  (ure-weighted-rules (pln-rb)))
+
+(define-public (pln-set-rule-tv! rule-name tv)
+"
+  Set the weight TV of a given rule name, i.e. DefinedSchemaNode,
+  associated to the PLN rule base. Under the hood this sets the TV
+  of
+
+  MemberLink
+    rule-name
+    (ConceptNode \"pln-rb\")
+"
+  (define current-as (cog-set-atomspace! pln-atomspace))
+  (cog-set-tv! (MemberLink rule-name (pln-mk-rb)) tv)
+  (cog-set-atomspace! current-as)
+
+  *unspecified*)
+
+(define-public (pln-rm-rules-by-names rule-names)
+  (define current-as (cog-set-atomspace! pln-atomspace))
+  (ure-rm-rules-by-names (pln-mk-rb) rule-names)
+  (cog-set-atomspace! current-as)
+
+  *unspecified*)
+
+(define-public (pln-fc . args)
+"
+  Wrapper around cog-fc using (pln-rb) as rule base.
+
+  See (help cog-fc) for more info.
+"
+  (apply cog-fc (cons (pln-rb) args)))
+
+(define-public (pln-bc . args)
+"
+  Wrapper around cog-bc using (pln-rb) as rule base.
+
+  See (help cog-bc) for more info.
+"
+  (apply cog-bc (cons (pln-rb) args)))

@@ -4,7 +4,7 @@
 #include <sstream>
 #include <iostream>
 
-#include <opencog/atoms/proto/NameServer.h>
+#include <opencog/atoms/atom_types/NameServer.h>
 #include <opencog/guile/SchemePrimitive.h>
 #include <opencog/util/Config.h>
 #include "SCMLoader.h"
@@ -22,7 +22,7 @@ PatternIndexAPI::PatternIndexAPI()
 
 PatternIndexAPI::~PatternIndexAPI()
 {
-	for (const IndexMap::value_type& index : indexes) {
+    for (const IndexMap::value_type& index : indexes) {
         delete index.second.first;
     }
 }

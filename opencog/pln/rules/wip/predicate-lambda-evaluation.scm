@@ -60,10 +60,9 @@
      predicate-lambda-evaluation-rewrite))
 
 (define (predicate-lambda-evaluation-formula lamb pred)
-  (let ((pred-c (cog-confidence pred)))
-    (if (not (= pred-c 0)) ; Try to avoid constructing
-                           ; informationless knowledge
-        (cog-merge-hi-conf-tv! lamb (cog-tv pred)))))
+    (if (< 0 (cog-confidence pred)) ; Try to avoid constructing
+                                    ; informationless knowledge
+        (cog-merge-hi-conf-tv! lamb (cog-tv pred))))
 
 ;; Name the rule
 (define predicate-lambda-evaluation-rule-name

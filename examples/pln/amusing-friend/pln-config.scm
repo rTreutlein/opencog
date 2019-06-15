@@ -24,17 +24,13 @@
 ;; ; scheme module system like this, its just asking for carpet burns.
 ;; (load-from-path "utilities.scm")
 ;; (load-from-path "av-tv.scm")
-;; (load-from-path "opencog/rule-engine/rule-engine-utils.scm")
+;; (load-from-path "opencog/ure/ure-utils.scm")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define PLN rule-based system ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define pln-rbs (ConceptNode "PLN"))
-(InheritanceLink
-   pln-rbs
-   (ConceptNode "URE")
-)
 
 ;; Define pln-fc and pln-bc for convenience 
 (define (pln-fc source) (cog-fc pln-rbs source))

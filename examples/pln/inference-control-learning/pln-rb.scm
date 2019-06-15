@@ -17,17 +17,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-modules (opencog))
-(use-modules (opencog rule-engine))
+(use-modules (opencog ure))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define PLN rule-based system ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define pln-rbs (ConceptNode "PLN"))
-(InheritanceLink
-   pln-rbs
-   (ConceptNode "URE")
-)
 
 ;; Define pln-bc for convenience
 (define (pln-bc . args)
@@ -84,7 +80,7 @@
 (ure-set-num-parameter pln-rbs "URE:maximum-iterations" piter)
 
 ;; Complexity penalty
-(ure-set-num-parameter pln-rbs "URE:BC:complexity-penalty" 0.1)
+(ure-set-num-parameter pln-rbs "URE:complexity-penalty" 0.1)
 
 ;; Mixture Model compressiveness
 (ure-set-num-parameter pln-rbs "URE:BC:MM:compressiveness" 0.5)

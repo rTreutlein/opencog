@@ -1,0 +1,3 @@
+// Octomap related
+OCTO_VALUE <- FLOAT_VALUE
+OCTOMAP_NODE <- NODE

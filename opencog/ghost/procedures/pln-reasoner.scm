@@ -32,6 +32,102 @@
 ;; ;; Question about happiness. Answer should be: crazy people are happy
 ;; (mock-HEAD-chat "p-1" "Eddie" "What do you know about happy?")
 
+; Since this file isn't loaded when ghost-procedures is loaded, import required
+; modules. It is not loaded with the module it is an experimental feature.
+(use-modules (opencog nlp sureal))
+(use-modules (opencog ure))
+
+; ----------------------------------------------------------------------------
+(define-public (filter-for-pln a-list)
+"
+  Takes a list of atoms and return a SetLink containing atoms that pln can
+  reason on. Some of the patterns that make the returned SetLink are,
+          (Inheritance
+              (TypeChoice
+                  (Type \"ConceptNode\")
+                  (Type \"SatisfyingSetLink\")
+                  (Type \"SatisfyingSetScopeLink\"))
+              (TypeChoice
+                  (Type \"ConceptNode\")
+                  (Type \"SatisfyingSetLink\")
+                  (Type \"SatisfyingSetScopeLink\")))
+          (Evaluation
+              (Type \"PredicateNode\")
+              (ListLink
+                  (Type \"ConceptNode\")
+                  (Type \"ConceptNode\")))
+          (Evaluation
+              (Type \"PredicateNode\")
+              (ListLink
+                  (Type \"ConceptNode\")))
+          (Member
+              (TypeChoice
+                  (Type \"ConceptNode\")
+                  (Type \"SatisfyingSetLink\")
+                  (Type \"SatisfyingSetScopeLink\"))
+              (TypeChoice
+                  (Type \"ConceptNode\")
+                  (Type \"SatisfyingSetLink\")
+                  (Type \"SatisfyingSetScopeLink\")))
+          (Implication
+              (Type \"PredicateNode\")
+              (Type \"PredicateNode\"))
+   a-list:
+  - This is a list of atoms, for example a list of r2l outputs
+"
+; TODO: Move this to an (opencog pln) module, when there is one.
+    (define filter-in-pattern
+        (ScopeLink
+            (TypedVariable
+                (Variable "$x")
+                (TypeChoice
+                    (Signature
+                        (Inheritance
+                            (TypeChoice
+                                (Type "ConceptNode")
+                                (Type "SatisfyingSetLink")
+                                (Type "SatisfyingSetScopeLink"))
+                            (TypeChoice
+                                (Type "ConceptNode")
+                                (Type "SatisfyingSetLink")
+                                (Type "SatisfyingSetScopeLink"))))
+                    (Signature
+                        (Implication
+                            (Type "PredicateNode")
+                            (Type "PredicateNode")))
+                    (Signature
+                        (Member
+                            (TypeChoice
+                                (Type "ConceptNode")
+                                (Type "SatisfyingSetLink")
+                                (Type "SatisfyingSetScopeLink"))
+                            (TypeChoice
+                                (Type "ConceptNode")
+                                (Type "SatisfyingSetLink")
+                                (Type "SatisfyingSetScopeLink"))))
+                    (Signature
+                        (Evaluation
+                            (Type "PredicateNode")
+                            (ListLink
+                                (Type "ConceptNode")
+                                (Type "ConceptNode"))))
+                    (Signature
+                        (Evaluation
+                            (Type "PredicateNode")
+                            (ListLink
+                                (Type "ConceptNode"))))
+                ))
+            ; Return atoms with the given signatures
+            (Variable "$x")
+        ))
+     (define filter-from (SetLink  a-list))
+     ; Do the filtering
+    (define result (cog-execute! (MapLink filter-in-pattern filter-from)))
+     ; Delete the filter-from SetLink and its encompasing MapLink.
+    (cog-delete-recursive filter-from)
+     result
+)
+
 ;-------------------------------------------------------------------------------
 (define (infer-on-r2l rule-base r2l-outputs steps)
     (let* ((inference-results
@@ -83,6 +179,9 @@
 
   Surealize and return the string of the TRAIL's inferred results.
 "
+  (define (get-sureal-results pln-output)
+    (sureal (Set (car (filter
+      (lambda (x) (equal? 'EvaluationLink (cog-type x))) pln-output)))))
   (define pln-outputs (cog-value->list (get-inferred-atoms trail)))
   (define candidates
     (if (null? pln-outputs)
@@ -94,7 +193,9 @@
   (if (null? candidates)
     ""
     ; FIXME: This only works for trail-3
-    (string-join (car (sureal (Set (car (filter
-			(lambda (x) (equal? 'EvaluationLink (cog-type x))) candidates))))))
-  )
+    (let ((sureal-results (get-sureal-results candidates)))
+      (if (null? sureal-results)
+        ""
+        (string-join (car (sureal-results))))
+    ))
 )

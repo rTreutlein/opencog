@@ -1,7 +1,10 @@
 # Boolean algebra rules
 ADD_GUILE_MODULE(FILES
 	consequent-disjunction-elimination.scm
+	modus-ponens.scm
+   contraposition.scm
 	fuzzy-conjunction-introduction.scm
 	fuzzy-disjunction-introduction.scm
-	MODULE_DESTINATION "${DATADIR}/scm/opencog/pln/rules/propositional"
+	formulas.scm
+	MODULE_DESTINATION "${GUILE_SITE_DIR}/opencog/pln/rules/propositional"
 )

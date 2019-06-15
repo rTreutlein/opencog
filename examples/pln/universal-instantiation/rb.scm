@@ -17,17 +17,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (use-modules (opencog))
-(use-modules (opencog rule-engine))
+(use-modules (opencog ure))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Define PLN rule-based system ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define pln-rbs (ConceptNode "PLN"))
-(InheritanceLink
-   pln-rbs
-   (ConceptNode "URE")
-)
 
 ;; Define pln-fc and pln-bc for convenience
 (define (pln-fc source) (cog-fc pln-rbs source))
@@ -67,4 +63,4 @@
 (ure-set-fuzzy-bool-parameter pln-rbs "URE:attention-allocation" 0)
 
 ;; Complexity penalty
-(ure-set-num-parameter pln-rbs "URE:BC:complexity-penalty" 1)
+(ure-set-num-parameter pln-rbs "URE:complexity-penalty" 1)

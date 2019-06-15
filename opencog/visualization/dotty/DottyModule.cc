@@ -28,7 +28,7 @@
 
 #include <boost/pointer_cast.hpp>
 
-#include <opencog/atoms/proto/NameServer.h>
+#include <opencog/atoms/atom_types/NameServer.h>
 #include <opencog/atomspace/AtomSpace.h>
 #include <opencog/atoms/base/Link.h>
 #include <opencog/atoms/base/Node.h>
@@ -129,8 +129,12 @@ public:
     void graph()
     {
         answer += "\ndigraph OpenCog {\n";
-        space->foreach_handle_of_type((Type)ATOM, &DottyGrapher::do_nodes, this, true);
-        space->foreach_handle_of_type((Type)ATOM, &DottyGrapher::do_links, this, true);
+        HandleSet handle_set;
+        space->get_handleset_by_type(handle_set, ATOM, true);
+        for (const Handle& h: handle_set)
+            do_nodes(h);
+        for (const Handle& h: handle_set)
+            do_links(h);
         answer += "}\n";
     }
 

@@ -13,8 +13,9 @@ LINK_DIRECTORIES(
 # list libsureal as a dependency, so that it gets rebuilt, if needed,
 # when building this test.
 LINK_LIBRARIES(
-	${ATOMSPACE_LIBRARY}
 	sureal
+	${NO_AS_NEEDED}
+	${ATOMSPACE_LIBRARIES}
 	${COGUTIL_LIBRARY}
 )
 

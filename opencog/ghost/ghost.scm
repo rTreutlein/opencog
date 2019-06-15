@@ -66,24 +66,19 @@
 ; Various anchors, predicates, values etc that will be used
 
 (define ghost-curr-proc (Anchor (ghost-prefix "Currently Processing")))
-(define ghost-curr-topic (Anchor (ghost-prefix "Current Topic")))
 (define ghost-last-executed (Anchor (ghost-prefix "Last Executed")))
-(define ghost-no-constant (Anchor (ghost-prefix "No constant terms")))
 (define ghost-rule-executed (Predicate (ghost-prefix "Rule Executed")))
 (define ghost-time-last-executed (Predicate (ghost-prefix "Time Last Executed")))
 (define ghost-word-seq (Predicate (ghost-prefix "Word Sequence")))
-(define ghost-lemma-seq (Predicate (ghost-prefix "Lemma Sequence")))
-(define ghost-topic (Concept (ghost-prefix "Topic")))
-(define ghost-topic-feature (Predicate (ghost-prefix "Topic Feature")))
+(define ghost-word-original (Predicate (ghost-prefix "Word Original")))
 (define ghost-rule-type (Predicate (ghost-prefix "Rule Type")))
-(define ghost-next-responder (Predicate (ghost-prefix "Next Responder")))
+(define ghost-next-reactive-rule (Predicate (ghost-prefix "Next Reactive Rule")))
 (define ghost-next-rejoinder (Predicate (ghost-prefix "Next Rejoinder")))
 (define ghost-rej-seq-num (Predicate (ghost-prefix "Rejoinder Sequence Number")))
 (define ghost-context-specificity (Predicate (ghost-prefix "Context Specificity")))
 (define strval-rejoinder (StringValue "rejoinder"))
-(define strval-responder (StringValue "responder"))
-(define strval-random-gambit (StringValue "random gambit"))
-(define strval-gambit (StringValue "gambit"))
+(define strval-reactive-rule (StringValue "reactive-rule"))
+(define strval-proactive-rule (StringValue "proactive-rule"))
 
 ;; --------------------
 (define-public (ghost-word-seq-pred)
@@ -95,9 +90,6 @@
 ;; --------------------
 ;; For rule parsing
 
-; When set, all the rules created will be under this topic
-(define rule-topic '())
-
 ; The initial urge of goals
 (define initial-urges '())
 
@@ -107,6 +99,17 @@
 ; A list of top level goals that will be shared with all the rules
 ; defined under it
 (define top-lv-goals '())
+
+; A list of rule level goals that will only be associated with the
+; rule following it
+(define rule-lv-goals '())
+
+; When set, all the rules created under it will be linked to these concepts,
+; until a new top level goal is defined
+(define top-lv-link-concepts '())
+
+; When set, the rule created under it will be linked to these concepts
+(define rule-lv-link-concepts '())
 
 ; Whether the rules defined under a top level goal is ordered
 (define is-rule-seq? #f)
@@ -118,21 +121,51 @@
 ; during rule parsing & creation
 (define pat-vars '())
 
+; A list of features for a rule, will be used during instantiation
+(define rule-features '())
+
 ; A list of all the labels of the rules we have seen
 (define rule-label-list '())
 
-; An association list of the types (responders, rejoinders etc)
+; An association list of the types (reactive rules, rejoinders etc)
 ; of the rules
 (define rule-type-alist '())
+
+; An association list for storing the default rule contexts and actions
+(define global-default-rule-alist '())
 
 ; An association list that contains all the terms needed to create
 ; the actual rules
 ; The key of this list is the labels of the rules
 (define rule-alist '())
 
-; A list to keep track of what rules hierarchy
+; A list to keep track of the rule hierarchy
 ; Will be used when dealing with rejoinders
 (define rule-hierarchy '())
+
+; Keep a record of the goals associated with the rule that has
+; just been instantiated, for dealing with rule ordering
+(define goals-of-prev-rule '())
+
+; To clear the above states
+(define (clear-parsing-states)
+  (set! initial-urges '())
+  (set! default-urge 0)
+  (set! top-lv-goals '())
+  (set! rule-lv-goals '())
+  (set! top-lv-link-concepts '())
+  (set! rule-lv-link-concepts '())
+  (set! is-rule-seq? #f)
+  (set! goal-rule-cnt 0)
+  (set! pat-vars '())
+  (set! rule-features '())
+  (set! rule-label-list '())
+  (set! rule-type-alist '())
+  (set! global-default-rule-alist '())
+  (set! rule-alist '())
+  (set! rule-hierarchy '())
+  (set! goals-of-prev-rule '())
+)
 
 ;; --------------------
 ;; For rule matching
@@ -159,7 +192,7 @@
 (define context-weight 1)
 (define sti-weight 1)
 (define urge-weight 1)
-(define responder-sti-boost 1)
+(define reactive-rule-sti-boost 1)
 (define rejoinder-sti-boost 10)
 (define refractory-period 1)
 (define specificity-based-action-selection #t)
@@ -232,7 +265,7 @@
            (equal? (cog-type ghost-buffer) 'SentenceNode))
     (begin
       (set! ghost-processed ghost-buffer)
-      (generate-word-seqs ghost-buffer)
+      (generate-word-seq ghost-buffer)
       (append-to-sent-seq ghost-buffer)
       (State ghost-curr-proc ghost-buffer)))
 )
@@ -246,7 +279,7 @@
 
   Parse the TXT, convert them into atomese.
 "
-  (test-parse TXT)
+  (cs-parse TXT)
   (process-rule-stack)
 )
 
@@ -257,7 +290,7 @@
 
   Parse everything in the FILE, and convert them into atomese.
 "
-  (test-parse-file FILE)
+  (cs-parse-file FILE)
   (process-rule-stack)
 )
 
@@ -268,7 +301,7 @@
 
   Parse everything in the FILES, and convert them into atomese.
 "
-  (for-each (lambda (f) (test-parse-file f)) FILES)
+  (for-each (lambda (f) (cs-parse-file f)) FILES)
   (process-rule-stack)
 )
 

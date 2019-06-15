@@ -25,8 +25,15 @@
          ; e.g. a rule may just be something like not-having-either-one-of-these-words
          (negation-only? (every (lambda (t) (equal? 'negation (car t))) TERMS))
          (empty-seq? (and (= 1 (length TERMS)) (equal? 'empty-context (caar TERMS))))
-         (func-only? (and (> (length TERMS) 0)
-           (every (lambda (t) (equal? 'function (car t))) TERMS)))
+         (func-only?
+           (and
+             (> (length TERMS) 0)
+             (every
+               (lambda (t)
+                 (or (equal? 'function (car t))
+                     (equal? 'seqor (car t))
+                     (equal? 'compare (car t))))
+               TERMS)))
          (start-anchor? (any (lambda (t) (equal? as t)) TERMS))
          (end-anchor? (any (lambda (t) (equal? ae t)) TERMS))
          (start (if start-anchor? (cdr (member as TERMS)) (list wc)))
@@ -93,10 +100,6 @@
                         (equal? (cadr term) (cons 'wildcard (cons 0 -1)))
                         (equal? 'wildcard (car (first prev))))
                    (cons term (cdr prev)))
-                  ; Same as the above, but for optionals
-                  ((and (equal? 'optionals (car term))
-                        (equal? 'wildcard (car (first prev))))
-                   (cons term (cdr prev)))
                   ; Similarly if there is a wildcard followed by a variable
                   ; that matches to "zero or more", e.g.
                   ; (wildcard 0 . -1) (variable (wildcard 0 . -1))
@@ -139,16 +142,46 @@
   ; - be related to a particular "concept"
   (define spec-concept 2)
 
+  (define (generate-context-function name args)
+    (context-function name
+      (map (lambda (a)
+        (cond ((equal? 'get_wvar (car a))
+               (list-ref pat-vars (cdr a)))
+              ((equal? 'get_lvar (car a))
+               (get-var-lemmas (list-ref pat-vars (cdr a))))
+              ((equal? 'get_uvar (car a))
+               (get-user-variable (cdr a)))
+              (else (ConceptNode (cdr a)))))
+        args))
+  )
+
+  (define (compare-item x)
+    (cond
+      ((equal? 'get_uvar (car x))
+       (get-user-variable (cdr x)))
+      ((equal? 'get_wvar (car x))
+       (list-ref pat-vars (cdr x)))
+      ((equal? 'get_lvar (car x))
+       (get-var-lemmas
+         (list-ref pat-vars (cdr x))))
+      ((equal? 'concept (car x))
+       (Concept (cdr x)))
+      ((equal? 'function (car x))
+       (action-function (cadr x)
+         (map compare-item (cddr x))))
+      ((or (equal? 'str (car x))
+           (equal? 'arg (car x)))
+       (WordNode (cdr x))))
+  )
+
   (define (process terms)
     (define v '())
     (define c '())
     (define ws '())
-    (define ls '())
     (define (update-lists t)
       (set! v (append v (list-ref t 0)))
       (set! c (append c (list-ref t 1)))
-      (set! ws (append ws (list-ref t 2)))
-      (set! ls (append ls (list-ref t 3))))
+      (set! ws (append ws (list-ref t 2))))
 
     (for-each (lambda (t)
       (cond ((equal? 'unordered-matching (car t))
@@ -215,10 +248,26 @@
                         (* (length (string-split (cdr ph) #\sp)) spec-word))
                        (else max-spec)))
                    spec-word
-                   (cdr t)
-                 )
+                   (cdr t))
                  (cdr t))))
              (set! has-words? #t))
+            ((equal? 'seqor (car t))
+             ; Just assume the specificity of it is 1.
+             (set! specificity (1+ specificity))
+             (set! c (append c (list (SequentialOr
+               (map
+                 (lambda (f)
+                   (cond
+                     ((equal? 'anyinput (car f))
+                      (generate-context-function "ghost-any-text-input?" (list)))
+                     ; This is basically assuming that the function in the
+                     ; list of choice is a predicate, instead of a schema
+                     ; that returns something to be matched against --
+                     ; probably a new syntex is needed in order to support
+                     ; both as there is no way to distinguish them
+                     ((equal? 'function (car f))
+                      (generate-context-function (cadr f) (cddr f)))))
+                 (cdr t)))))))
             ((equal? 'optionals (car t))
              (update-lists (optionals (cdr t)))
              ; The specificity of optionals is almost identical to concept,
@@ -245,34 +294,19 @@
             ((equal? 'variable (car t))
              (update-lists (process (cdr t)))
              (set! pat-vars (append pat-vars (last-pair ws))))
-            ((equal? 'uvar_exist (car t))
-             (set! c (append c (list (uvar-exist? (cdr t)))))
+            ((equal? 'uvar_eval (car t))
+             (update-lists (uvar-eval (cdr t)))
              ; User variable has a condition of checking if a particular
              ; user variable has been defined
              (set! specificity (+ specificity 1))
-             (set! has-words? #t))
-            ((equal? 'uvar_equal (car t))
-             (set! c (append c (list (uvar-equal? (cadr t) (caddr t)))))
-             ; uvar_equal should have a specificity of a word as they
-             ; have the same set of conditions to be satisfied
-             (set! specificity (+ specificity spec-word))
              (set! has-words? #t))
             ((equal? 'function (car t))
              ; The specificity of a function / predicate depends really
              ; on what that function is doing (and it could be anything)
              ; For now, just assume the specificity of a function is 1.
              (set! specificity (+ specificity 1))
-             (set! c (append c
-               (list (context-function (cadr t)
-                 (map (lambda (a)
-                   (cond ((equal? 'get_wvar (car a))
-                          (list-ref pat-vars (cdr a)))
-                         ((equal? 'get_lvar (car a))
-                          (get-var-lemmas (list-ref pat-vars (cdr a))))
-                         ((equal? 'get_uvar (car a))
-                          (get-user-variable (cdr a)))
-                         (else (ConceptNode (cdr a)))))
-                   (cddr t)))))))
+             (set! c (append c (list
+               (generate-context-function (cadr t) (cddr t))))))
             ((equal? 'sequence (car t))
              (let ((pt (process (cdr t))))
                   ; Wrap the sequences with a ListLink
@@ -283,13 +317,41 @@
             ; it's always true and should be triggered
             ; even if there is no perception input
             ((equal? 'empty-context (car t))
-              (set! c (list (TrueLink))))
+             (set! c (list (TrueLink))))
+            ((equal? 'compare (car t))
+             (set! c (append c (list
+               (cond
+                 ((string=? "equal" (cadr t))
+                  (compare-equal
+                    (compare-item (caddr t))
+                    (compare-item (cadddr t))))
+                 ((string=? "not_equal" (cadr t))
+                  (compare-not-equal
+                    (compare-item (caddr t))
+                    (compare-item (cadddr t))))
+                 ((string=? "smaller" (cadr t))
+                  (compare-smaller
+                    (compare-item (caddr t))
+                    (compare-item (cadddr t))))
+                 ((string=? "smaller_equal" (cadr t))
+                  (compare-smaller-equal
+                    (compare-item (caddr t))
+                    (compare-item (cadddr t))))
+                 ((string=? "greater" (cadr t))
+                  (compare-greater
+                    (compare-item (caddr t))
+                    (compare-item (cadddr t))))
+                 ((string=? "greater_equal" (cadr t))
+                  (compare-greater-equal
+                    (compare-item (caddr t))
+                    (compare-item (cadddr t)))))))))
             (else (begin
+              (clear-parsing-states)
               (cog-logger-warn ghost-logger
                 "Feature not supported: \"(~a ~a)\"" (car t) (cdr t))
               (throw 'FeatureNotSupported (car t) (cdr t))))))
       terms)
-    (list v c ws ls))
+    (list v c ws))
 
   (define (generate-eval pred seq)
     (Evaluation pred (List (Variable "$S") (List (flatten-list seq)))))
@@ -299,7 +361,6 @@
   (define vars (list-ref terms 0))
   (define conds (list-ref terms 1))
   (define word-seq (list-ref terms 2))
-  (define lemma-seq (list-ref terms 3))
 
   ; If there is no word in the pattern, then don't put the seqs
   ; and the other sentence related stuffs in the context
@@ -314,57 +375,42 @@
       (if is-unordered?
         ; Generate an EvaluationLink for each of the term in the seq
         ; if it's an unordered match
-        (begin
-          (for-each
-            (lambda (t)
-              (let ((wc (wildcard 0 -1)))
-                (set! vars (append vars (list-ref wc 0)))
-                (set! conds (append conds (list (generate-eval ghost-word-seq
-                  (list (car (list-ref wc 2)) t (car (list-ref wc 3)))))))))
-            word-seq)
-          (if (not ghost-with-ecan)
-            (for-each
-              (lambda (t)
-                (let ((wc (wildcard 0 -1)))
-                  (set! vars (append vars (list-ref wc 0)))
-                  (set! conds (append conds (list (generate-eval ghost-lemma-seq
-                    (list (car (list-ref wc 2)) t (car (list-ref wc 3)))))))))
-              lemma-seq)))
+        (for-each
+          (lambda (t)
+            (let ((wc1 (wildcard 0 -1))
+                  (wc2 (wildcard 0 -1)))
+              (set! vars (append vars (list-ref wc1 0) (list-ref wc2 0)))
+              (set! conds (append conds (list (generate-eval ghost-word-seq
+                (list (car (list-ref wc1 2)) t (car (list-ref wc2 2)))))))))
+          word-seq)
         ; Otherwise it's an ordered match
-        (begin
-          (set! conds (append conds (list
-            (generate-eval ghost-word-seq word-seq))))
-          (if (not ghost-with-ecan)
-            (set! conds (append conds (list
-              (generate-eval ghost-lemma-seq lemma-seq))))))))
-    ; See below
-    (if (not ghost-with-ecan)
-      (MemberLink (car conds) ghost-no-constant)))
-
-  ; DualLink couldn't match patterns with no constant terms in it
-  ; Mark the rules with no constant terms so that they can be found
-  ; easily during the matching process
-  (if (and (not ghost-with-ecan)
-        (equal? (length lemma-seq)
-          (length (filter (lambda (x) (equal? 'GlobNode (cog-type x)))
-                          lemma-seq))))
-      (MemberLink (List lemma-seq) ghost-no-constant))
+        (set! conds (append conds (list
+          (generate-eval ghost-word-seq word-seq)))))))
 
   (list vars conds has-words? specificity)
 )
 
 ; ----------
-(define (process-action ACTION RULENAME)
+(define (process-action ACTION RULENAME IS-PARALLEL-RULE?)
 "
   Generate the atomese for each of the terms in ACTION.
   RULENAME is the alias assigned to the rule.
 "
+  ; The rule name/label, as a ConceptNode
+  (define concept-rule-name (Concept RULENAME))
+
   ; The system functions that are commonly used
   (define reuse #f)
-  (define keep (topic-has-feature? rule-topic "keep"))
+  (define keep #f)
+  (define unkeep #f)
+  (define set_used #f)
+  (define set-used-rule-label "")
 
   ; The GroundedSchemaNode that will be used
-  (define gsn-action (GroundedSchema "scm: ghost-execute-action"))
+  (define gsn-action
+    (if IS-PARALLEL-RULE?
+      (GroundedSchema "scm: ghost-execute-base-action")
+      (GroundedSchema "scm: ghost-execute-action")))
 
   (define (to-atomese actions)
     (define choices '())
@@ -385,7 +431,7 @@
                     (append (list ac) (to-atomese (list n)))))
               ; The grounding of a variable in original words, e.g. '_0
               ((equal? 'get_wvar (car n))
-               (list-ref pat-vars (cdr n)))
+               (get-var-literals (list-ref pat-vars (cdr n))))
               ; The grounding of a variable in lemmas, e.g. _0
               ((equal? 'get_lvar (car n))
                (get-var-lemmas (list-ref pat-vars (cdr n))))
@@ -399,6 +445,11 @@
                     (equal? "keep" (cadr n)))
                (set! keep #t)
                (list))
+              ; A system function -- unkeep, just for parallel-rules
+              ((and (equal? 'function (car n))
+                    (equal? "unkeep" (cadr n)))
+               (set! unkeep #t)
+               (list))
               ; A system function -- reuse
               ; First of all, try to see if the rule has been created in
               ; the AtomSpace, and get its action directly if so
@@ -407,7 +458,7 @@
               ((and (equal? 'function (car n))
                     (equal? "reuse" (cadr n)))
                (let* ((label (cdaddr n))
-                      (reused-rule (get-rule-from-label label)))
+                      (reused-rule (get-rules-from-label label)))
                  (if (null? reused-rule)
                    (let ((reused-rule-from-alist (assoc-ref rule-alist label)))
                      (if (null? reused-rule-from-alist)
@@ -419,10 +470,50 @@
                          (set! reuse #t)
                          (process-action
                            ; The 2nd item in the list is the action
-                           (list-ref reused-rule-from-alist 1) label))))
+                           (list-ref reused-rule-from-alist 1)
+                           label
+                           IS-PARALLEL-RULE?))))
                    (begin
                      (set! reuse #t)
-                     (psi-get-action reused-rule)))))
+                     ; Get all the rule features and append them to the
+                     ; current rule-features list
+                     (set! rule-features (append rule-features
+                       (map (lambda (k) (cons k (cog-value (car reused-rule) k)))
+                         (cog-keys (car reused-rule)))))
+                     (psi-get-action (car reused-rule))))))
+              ; A system function -- set_used
+              ((and (equal? 'function (car n))
+                    (equal? "set_used" (cadr n)))
+               (let* ((label (cdaddr n))
+                      (used-rule (get-rules-from-label label)))
+                 (if (null? used-rule)
+                   (let ((used-rule-from-alist (assoc-ref rule-alist label)))
+                     (if (null? used-rule-from-alist)
+                       (cog-logger-error ghost-logger
+                         "Please make sure the rule with label \"~a\" is defined!" label)
+                       (begin
+                         (cog-logger-debug ghost-logger
+                           "Found the rule \"~a\" in the rule-alist" label)
+                         (set! set_used #t)
+                         (set! set-used-rule-label label)
+                         ; Calling process-action just to get all the rule-features
+                         ; of the rule that will set used
+                         (process-action
+                           ; The 2nd item in the list is the action
+                           (list-ref used-rule-from-alist 1)
+                           label
+                           IS-PARALLEL-RULE?))))
+                   (begin
+                     (set! set_used #t)
+                     (set! set-used-rule-label label)
+                     ; Get all the rule features and append them to the
+                     ; current rule-features list
+                     (set! rule-features (append rule-features
+                       (map (lambda (k) (cons k (cog-value (car used-rule) k)))
+                         (cog-keys (car used-rule))))))))
+               ; We don't actually need to generate anything for 'set_used'
+               ; apart from getting the rule-features which is done above
+               (list))
               ; Other functions
               ((equal? 'function (car n))
                (action-function (cadr n) (to-atomese (cddr n))))
@@ -455,82 +546,70 @@
   ; the additional ones that are in the same TrueLink
   ; TODO: Handle variables as well
   (define (get-reused-action atomese)
-    (define action-atomese
-      (append-map
-        (lambda (x)
-          (cond ; "x" could just be a list if ^keep() is used
-                ; in the same rule, skip it that's the case
-                ((and keep (list? x) (null? x)) (list))
-                ((equal? 'TrueLink (cog-type x))
-                 (get-reused-action (cog-outgoing-set x)))
-                ((and (equal? 'ExecutionOutputLink (cog-type x))
-                      (equal? gsn-action (gar x)))
-                 (get-reused-action (cog-outgoing-set (gdr x))))
-                (else (list x))))
-        atomese))
-      ; Filter out duplicate PutLinks in the action -- the ones that
-      ; are updating the same state, e.g. if there are (Put (State A) B)
-      ; and (Put (State A) C) in a list, then only (Put (State A) C)
-      ; is kept as it's the last one in the list
-      ; Filtering may be needed when "reuse" is called more than one time,
-      ; either in a single rule, or other rule in the chain
-      ; The fold-right and reverse are there to perserve the execution order
-      (reverse
-        (fold-right
-          (lambda (atom rtn)
-            (if (and (equal? 'PutLink (cog-type atom))
-                     (equal? 'StateLink (cog-type (gar atom)))
-                     (find (lambda (x) (equal? (gar atom) (gar x))) rtn))
-              rtn
-              (append rtn (list atom))))
-          (list)
-          action-atomese)))
+    (append-map
+      (lambda (x)
+        (cond
+           ; "x" could just be an empty list if ^keep() or any
+           ; other system function is used in the same rule,
+           ; and nothing needs to be done if that's the case
+           ((and (list? x) (null? x)) (list))
+           ((equal? 'TrueLink (cog-type x))
+            (get-reused-action (cog-outgoing-set x)))
+           ((and (equal? 'ExecutionOutputLink (cog-type x))
+                 (equal? gsn-action (gar x)))
+            (get-reused-action (cog-outgoing-set (gdr x))))
+           (else (list x))))
+      atomese))
 
   (define action-atomese (to-atomese (cdar ACTION)))
 
+  ; Get the rule features
+  ; -----
+  ; The default behavior is to not executed the same action
+  ; more than once -- update the TV strength to zero so that
+  ; the action selector won't select it again
+  ; Except if the rule is supposed to be kept or it's
+  ; a rejoinder (rejoinders are kept by default, because it
+  ; won't be triggered anyway if the parent is not triggered
+  ; and if the parent is triggered, one would expect the
+  ; rejoinders can be triggered too for the next input),
+  ; or it's a parallel-rule that's supposed to be evaluated
+  ; all the time in the background
+  (if (or (not (or keep
+               (equal? (assoc-ref rule-type-alist RULENAME) strval-rejoinder)))
+          (and IS-PARALLEL-RULE? unkeep))
+    (set! rule-features
+      (append rule-features (list
+        (cons (Predicate "unkeep") (Concept RULENAME))))))
+  ; To set another rule as "used"
+  (if set_used
+    (set! rule-features
+      (append rule-features (list
+        (cons (Predicate "unkeep") (Concept set-used-rule-label))))))
+  ; Keep a record of which rule is the last executed one, just for rejoinders
+  ; And when a "reuse" is used, it becomes slightly more complicated
+  ; The expected behavior is that, when (the action of) a rule is reused,
+  ; the rule will be considered as fired, so mark the last executed rule
+  ; as the reused one instead of the one that calls the reuse function,
+  ; so that the rejoinders (if any) of the reused rule can be triggered
+  ; correctly. Same applies to 'set_used'.
+  (if (not (or reuse set_used))
+    (set! rule-features
+      (append rule-features (list
+        (cons (Predicate "last-executed") (Concept RULENAME))))))
+  ; Keep a record of which rule has been executed, applicable to
+  ; all of the rules
+  (set! rule-features
+    (append rule-features (list
+      (cons (Predicate "mark-executed") (Concept RULENAME)))))
+
   (True
-    (list
-      (ExecutionOutput
-        gsn-action
-        (List
-          (if reuse
-            (get-reused-action action-atomese)
-            action-atomese)))
-      ; Keep a record of which rule is the last executed one, just for rejoinders
-      ; And when a "reuse" is used, it becomes slightly more complicated
-      ; The expected behavior is that, when (the action of) a rule is reused,
-      ; the rule will be considered as fired, so mark the last executed rule
-      ; as the reused one instead of the one that calls the reuse function,
-      ; so that the rejoinders (if any) of the reused rule can be triggered
-      ; correctly
-      (if reuse
-        (list)
-        (Put (State ghost-last-executed (Variable "$x"))
-             (Concept RULENAME)))
-      ; The default behavior is to not executed the same action
-      ; more than once -- update the TV strength to zero so that
-      ; the action selector won't select it again
-      ; Except if the rule is supposed to be kept or it's
-      ; a rejoinder (rejoinders are kept by default, because it
-      ; won't be triggered anyway if the parent is not triggered
-      ; and if the parent is triggered, one would expect the
-      ; rejoinders can be triggered too for the next input)
-      (if (or keep (equal? (assoc-ref rule-type-alist RULENAME) strval-rejoinder))
-          (list)
-          (ExecutionOutput
-            (GroundedSchema "scm: ghost-update-rule-strength")
-            ; Note: This is generated by psi-rule-set-alias!
-            (List (Concept RULENAME)
-                  (Number 0))))
-      ; Keep a record of which rules have been executed
-      (ExecutionOutput
-        (GroundedSchema "scm: ghost-record-executed-rule")
-        (List (Concept RULENAME)))
-      ; Set the current topic, for backward compatibility
-      (if ghost-with-ecan
-        (list)
-        (Put (State ghost-curr-topic (Variable "$x"))
-             rule-topic)))))
+    (ExecutionOutput
+      gsn-action
+      (List
+        (if reuse
+          (get-reused-action action-atomese)
+          action-atomese)))))
 
 ; ----------
 (define (process-goal GOAL)
@@ -554,14 +633,17 @@
   Figure out what the type of the rule is, generate the needed atomese, and
   return the type as a StringValue.
 "
-  (cond ((or (equal? #\u TYPE)
-             (equal? #\s TYPE))
+  (cond ((or (string=? "r" TYPE)
+             ; For backward compatibility
+             (string=? "u" TYPE)
+             (string=? "s" TYPE))
          (set! rule-type-alist
-           (assoc-set! rule-type-alist NAME strval-responder))
+           (assoc-set! rule-type-alist NAME strval-reactive-rule))
          (list '() '()))
-        ((equal? #\? TYPE)
+        ; For backward compatibility
+        ((equal? "?" TYPE)
          (set! rule-type-alist
-           (assoc-set! rule-type-alist NAME strval-responder))
+           (assoc-set! rule-type-alist NAME strval-reactive-rule))
          (let ((var (Variable (gen-var "Interpretation" #f))))
            (list
              (list (TypedVariable var (Type "InterpretationNode")))
@@ -572,20 +654,24 @@
                    (DefinedLinguisticConcept "InterrogativeSpeechAct"))
                  (InheritanceLink var
                    (DefinedLinguisticConcept "TruthQuerySpeechAct")))))))
-        ((equal? #\r TYPE)
+        ((or (string=? "p" TYPE)
+             ; For backward compatibility
+             (string=? "t" TYPE))
          (set! rule-type-alist
-           (assoc-set! rule-type-alist NAME strval-random-gambit))
-         (list '() '()))
-        ((equal? #\t TYPE)
-         (set! rule-type-alist
-           (assoc-set! rule-type-alist NAME strval-gambit))
+           (assoc-set! rule-type-alist NAME strval-proactive-rule))
          (list '() '()))
         ((null? rule-hierarchy)
+         (clear-parsing-states)
          ; If we are here, it has to be a rejoinder, so make sure
-         ; rule-hierarchy is not empty, i.e. a responder should
+         ; rule-hierarchy is not empty, i.e. a reactive rule should
          ; be defined in advance
          (throw (ghost-prefix
-           "Please define a responder first before defining a rejoinder.")))
+           "Please define a reactive rule first before defining a rejoinder.")))
+        ((equal? "Parallel-Rules"
+           (cog-name (psi-get-goal (car (get-rules-from-label
+             (last (list-ref rule-hierarchy (- (get-rejoinder-level TYPE) 1))))))))
+         (clear-parsing-states)
+         (throw (ghost-prefix "Rejoinder is not supported for parallel rules.")))
         ; For rejoinders, put the condition (the last rule executed is
         ; the parent of this rejoinder) in the pattern of the rule
         (else (let ((var (Variable (gen-var "GHOST-rule" #f)))
@@ -637,24 +723,37 @@
     rule-label-list)
 
   ; Clear the states
-  (set! rule-label-list '())
-  (set! rule-alist '())
-  (set! rule-hierarchy '())
+  (clear-parsing-states)
 )
 
 ; ----------
-(define (create-rule PATTERN ACTION GOAL NAME TYPE)
+(define (create-default-rule RULE-TYPE CONTEXT ACTION)
+"
+  Record the context and/or action that will be shared among all
+  the rules with the same rule type.
+"
+  (cog-logger-debug ghost-logger
+    "Global default rule:\nType: ~a\nContext: ~a\nAction: ~a"
+      RULE-TYPE CONTEXT ACTION)
+
+  (set! global-default-rule-alist
+    (assoc-set! global-default-rule-alist RULE-TYPE (cons CONTEXT ACTION)))
+)
+
+; ----------
+(define (create-rule PATTERN ACTION NAME TYPE)
 "
   Top level translation function.
 
-  PATTERN, ACTION, and GOAL are the basic components of a psi-rule,
-  correspond to context, procedure, and goal respectively.
+  PATTERN and ACTION, aka context and procedure, are the basic
+  components of a psi-rule.
 
   NAME is like a label of a rule, so that one can reference this rule
   by using it.
 
-  TYPE is a grouping idea from ChatScript, e.g. responders, rejoinders,
-  gambits etc.
+  TYPE is a grouping idea from ChatScript, i.e. responders, rejoinders,
+  and gambits. Note, here in GHOST, responders are called reactive rules
+  and gambits are called proactive rules.
 "
   ; Label the rule with NAME, if given, generate one otherwise
   (define rule-name
@@ -666,11 +765,17 @@
 
   (set! rule-alist
     (assq-set! rule-alist rule-name
-      (list PATTERN ACTION (process-goal GOAL) GOAL rule-name TYPE is-rule-seq?)))
+      (list PATTERN ACTION (process-goal rule-lv-goals) rule-lv-goals
+        rule-name TYPE is-rule-seq?
+          (append top-lv-link-concepts rule-lv-link-concepts))))
+
+  ; Reset any rule level stuff
+  (set! rule-lv-goals '())
+  (set! rule-lv-link-concepts '())
 )
 
 ; ----------
-(define (instantiate-rule PATTERN ACTION ALL-GOALS RULE-LV-GOALS NAME TYPE ORDERED?)
+(define (instantiate-rule PATTERN ACTION ALL-GOALS RULE-LV-GOALS NAME TYPE ORDERED? RULE-CONCEPTS)
 "
   To process and create the rule in the AtomSpace.
 "
@@ -690,16 +795,31 @@
         (LinkValue CRULE)
         (apply LinkValue (append (cog-value->list val) (list CRULE))))))
 
-  ; First of all, make sure the topic is set
-  ; so that it can be used when we are processing the action
-  (if (null? rule-topic)
-    (set! rule-topic (create-topic "Default Topic")))
-
-  ; Reset the list of local variables
+  ; Reset the list of local variables and rule features
   (set! pat-vars '())
+  (set! rule-features '())
 
-  (let* ((proc-type (process-type TYPE NAME))
-         (ordered-terms (order-terms PATTERN))
+  ; Reset the rule hierarchy if we are looking at a rule with
+  ; a different set of goals, or it has been changed from
+  ; ordered to unordered (or vice versa)
+  (if (or (null? goals-of-prev-rule)
+          (not (equal? (car goals-of-prev-rule) ALL-GOALS))
+          (not (equal? (cdr goals-of-prev-rule) ORDERED?)))
+    (begin
+      (set! goals-of-prev-rule (cons ALL-GOALS ORDERED?))
+      (set! rule-hierarchy '())))
+
+  (let* ((default-rule (assoc-ref global-default-rule-alist TYPE))
+         (rule-pattern
+           (if (or (not default-rule) (null? (car default-rule)))
+              PATTERN
+              (append (car default-rule) PATTERN)))
+         (rule-action
+           (if (or (not default-rule) (null? (cdr default-rule)))
+              ACTION
+              (list (cons 'action (append (cdadr default-rule) (cdar ACTION))))))
+         (proc-type (process-type TYPE NAME))
+         (ordered-terms (order-terms rule-pattern))
          (proc-terms (process-pattern-terms ordered-terms))
          (vars (append (list-ref proc-terms 0)
                        (list-ref proc-type 0)))
@@ -707,12 +827,15 @@
                         (list-ref proc-type 1)))
          (specificity (list-ref proc-terms 3))
          (type (assoc-ref rule-type-alist NAME))
-         (action (process-action ACTION NAME))
+         (action (process-action rule-action NAME
+                   (find
+                     (lambda (g) (string=? "Parallel-Rules" (car g)))
+                     ALL-GOALS)))
          (is-rejoinder? (equal? type strval-rejoinder))
          (rule-lv (if is-rejoinder? (get-rejoinder-level TYPE) 0)))
 
     (cog-logger-debug ghost-logger "Context: ~a" ordered-terms)
-    (cog-logger-debug ghost-logger "Procedure: ~a" ACTION)
+    (cog-logger-debug ghost-logger "Procedure: ~a" rule-action)
     (cog-logger-debug ghost-logger "Goal: ~a" ALL-GOALS)
 
     ; Update the count -- how many rules we've seen under this top level goal
@@ -760,6 +883,35 @@
               (stv (/ (cdr goal) (expt 2 (+ rule-lv goal-rule-cnt))) .9))
             ghost-component))
 
+        ; Assign the features to the rule
+        (for-each
+          (lambda (f)
+            (define key-str (cog-name (car f)))
+            (define val (cog-value a-rule (car f)))
+            (cond
+              ((or (string=? "unkeep" key-str)
+                   (string=? "mark-executed" key-str))
+               (cond
+                 ; If 'val' is null, that means no such value has been
+                 ; assigned to this rule yet
+                 ((null? val)
+                  (cog-set-value! a-rule (car f) (LinkValue (cdr f))))
+                 ; If 'val' is not null and it's an atom, just append it
+                 ; it to 'val'
+                 ((cog-atom? (cdr f))
+                  (cog-set-value! a-rule (car f)
+                    (apply LinkValue (append (flatten-linkval val)
+                      (list (cdr f))))))
+                 ; If 'val' is not null and it's not an atom, it's a
+                 ; LinkValue, based on the way it's being used here in
+                 ; GHOST, so turn it into a list and append it to 'val'
+                 (else (cog-set-value! a-rule (car f)
+                   (apply LinkValue (append (flatten-linkval val)
+                     (flatten-linkval (cdr f))))))))
+              ((string=? "last-executed" key-str)
+               (cog-set-value! a-rule (car f) (cdr f)))))
+          rule-features)
+
         ; If the rule can possibly be satisfied by input sentence
         ; tag it as such.
         (if (list-ref proc-terms 2)
@@ -775,22 +927,18 @@
         ; Set how specific the context of the rule is
         (cog-set-value! a-rule ghost-context-specificity (FloatValue specificity))
 
-        ; Associate it with its topic
-        (if (not ghost-with-ecan)
-          (Inheritance a-rule rule-topic))
-
         ; Keep track of the rule hierarchy, and link rules that
         ; are defined in a sequence
         (if is-rejoinder?
           ; If it's a rejoinder, its parent rule should be the
           ; last rule one level up in rule-hierarchy
-          ; 'process-type' will make sure there is a responder
-          ; defined beforehand so rule-hierarchy is not empty
+          ; 'process-type' will make sure there is a reactive
+          ; rule defined beforehand so rule-hierarchy is not empty
           (begin
             (set-next-rule
-              (get-rule-from-label
+              (car (get-rules-from-label
                 (last (list-ref rule-hierarchy
-                  (1- (get-rejoinder-level TYPE)))))
+                  (1- (get-rejoinder-level TYPE))))))
               a-rule ghost-next-rejoinder)
             (add-to-rule-hierarchy
               (get-rejoinder-level TYPE) NAME)
@@ -810,8 +958,8 @@
                   (for-each
                     (lambda (r)
                       (set-next-rule
-                        (get-rule-from-label r)
-                          a-rule ghost-next-responder))
+                        (car (get-rules-from-label r))
+                          a-rule ghost-next-reactive-rule))
                     lv))
                 rule-hierarchy))
             (add-to-rule-hierarchy 0 NAME)))
@@ -828,6 +976,9 @@
                   (equal? 'GroundedPredicateNode (cog-type x))))
             (append-map cog-get-all-nodes conds)))
 
+        ; Link it to concepts, if defined
+        (map (lambda (c) (Member a-rule (Concept c))) RULE-CONCEPTS)
+
         ; (cog-logger-debug ghost-logger "rule-hierarchy: ~a" rule-hierarchy)
 
         ; Return
@@ -842,7 +993,7 @@
   NAME is the name of the concept, and the rest is the list of words
   and/or concepts that will be considered as the members of the concept.
 "
-  (map (lambda (m) (Reference m (Concept NAME)))
+  (map (lambda (m) (Member m (Concept NAME)))
        (terms-to-atomese MEMBERS)))
 
 (define (set-initial-urge URGES)
@@ -860,7 +1011,7 @@
 
 (define* (create-top-lv-goal GOALS #:optional (ORDERED #f))
 "
-  Create a top level goal that will be shared among the rules under it.
+  Create top level goals that will be shared among the rules under it.
 "
   ; Actually create the goals in the AtomSpace
   (for-each
@@ -874,37 +1025,51 @@
   (set! top-lv-goals GOALS)
   (set! is-rule-seq? ORDERED)
 
+  ; Reset the top-lv-link-concepts when a new goal is defined
+  (set! top-lv-link-concepts '())
+
   ; Reset the count when we see a new top level goal
   (set! goal-rule-cnt 0))
 
-(define* (create-topic TOPIC-NAME #:optional (FEATURES (list)) (KEYWORDS (list)))
+(define (create-rule-lv-goal GOALS)
 "
-  Create a GHOST topic named TOPIC-NAME.
-
-  FEATURES are the topic level features that will be applied to every
-  single rules under this topic.
-
-  KEYWORDS are kind of like the concepts related to this topic.
-  Currently it doesn't have any effect on the action selection, so may
-  be removed in the future.
+  Create rule level goals, assuming they have all been defined before.
 "
-  ; A topic will be defined when loading a (topic) file
-  (set! rule-topic (Concept (ghost-prefix TOPIC-NAME)))
-  (Inheritance rule-topic ghost-topic)
+  ; Check if any of them is undefined
+  (for-each
+    (lambda (goal)
+      (if (not (psi-goal? (Concept (car goal))))
+        (begin
+          (cog-logger-warn ghost-logger
+            "Goal \"~a\" has not been defined! Default urge ~d will be used"
+              (car goal) default-urge)
+          (psi-goal (car goal) default-urge))))
+    GOALS)
 
-  ; The set of features associate with the topic
-  ; The features will be stored as "values"
-  (cog-set-value! rule-topic ghost-topic-feature
-    (apply LinkValue (map (lambda (f) (StringValue f)) FEATURES)))
-
-  ; The set of keywords associate with the topic
-  (for-each (lambda (kw) (Member kw rule-topic)) (terms-to-atomese KEYWORDS))
-
-  rule-topic)
+  (set! rule-lv-goals GOALS)
+)
 
 (define (create-user-variable UVAR VAL)
 "
   Define a new user variable.
 "
   (ghost-set-user-variable (ghost-uvar UVAR) (List (Word VAL)))
+)
+
+(define (create-top-lv-link-concepts CONCEPTS)
+"
+  Link CONCEPTS to rules under it via a MemberLink.
+
+  The actual linkages will be created when the rules are instantiated.
+"
+  (set! top-lv-link-concepts CONCEPTS)
+)
+
+(define (create-rule-lv-link-concepts CONCEPTS)
+"
+  Link CONCEPTS only to the rule following it.
+
+  The actual linkages will be created when the rule is instantiated.
+"
+  (set! rule-lv-link-concepts CONCEPTS)
 )

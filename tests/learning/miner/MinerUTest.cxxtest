@@ -24,16 +24,18 @@
 
 #include <cxxtest/TestSuite.h>
 
+#include "MinerUTestUtils.h"
+
 #include <opencog/util/Config.h>
 #include <opencog/util/algorithm.h>
-#include <opencog/truthvalue/SimpleTruthValue.h>
+#include <opencog/util/random.h>
+#include <opencog/atoms/truthvalue/TruthValue.h>
+#include <opencog/atoms/truthvalue/SimpleTruthValue.h>
 #include <opencog/atomspace/AtomSpace.h>
-#include <opencog/query/BindLinkAPI.h>
 #include <opencog/learning/miner/HandleTree.h>
 #include <opencog/learning/miner/Miner.h>
-#include <opencog/rule-engine/forwardchainer/ForwardChainer.h>
-#include <opencog/rule-engine/backwardchainer/BackwardChainer.h>
-#include <opencog/rule-engine/URELogger.h>
+#include <opencog/learning/miner/Surprisingness.h>
+#include <opencog/ure/URELogger.h>
 #include <opencog/guile/SchemeEval.h>
 
 #include <vector>
@@ -63,11 +65,17 @@ private:
 	// Pattern miner rule base
 	Handle pm_rb;
 
+	// I-Surprisingness rule base
+	Handle isurp_rb;
+
 	// Concept holding the texts
 	Handle texts_cpt;
 
 	// minsup predicate
 	Handle minsup_prd;
+
+	// I-Surprisingness predicate
+	Handle isurp_prd;
 
 	// Top abstraction (Lambda X X)
 	Handle top;
@@ -89,15 +97,6 @@ private:
 	/**
 	 * Make
 	 *
-	 * (Evaluation
-	 *   (GroundedPredicate "scm: absolutely-true")
-	 *   h)
-	 */
-	Handle mk_abs_true_eval(const Handle& h);
-
-	/**
-	 * Make
-	 *
 	 * (Lambda
 	 *   (VariableList X1 ... Xn)
 	 *   (And X1 ... Xn))
@@ -105,35 +104,19 @@ private:
 	Handle mk_nconjunct(unsigned n);
 
 	/**
-	 * Make a URE query to mine patterns over texts with a given
-	 * minsup and a maximum of URE iterations.
-	 */
-	Handle mk_query(const HandleSeq& texts, int minsup,
-	                int depth, Handle initpat=Handle::UNDEFINED);
-
-	/**
-	 * Generate a variable (VariableNode <prefix-i>)
-	 */
-	Handle gen_variable(const std::string& prefix, int i);
-
-	/**
-	 * Generate variables (VariableNode <prefix-0>) ... (VariableNode <prefix-n-1>)
-	 */
-	HandleSeq gen_variables(const std::string& prefix, int n);
-
-	/**
-	 * Return whether if a pattern has enough support.
-	 */
-	bool enough_support(const Handle& pat, int ms);
-
-	/**
 	 * Generate a query, run the URE forward to generate patterns,
 	 * then backward to gather the results, and output them.
 	 */
 	Handle ure_pm(const AtomSpace& texts_as, int minsup,
-	              int max_iter=-1, Handle initpat=Handle::UNDEFINED);
-	Handle ure_pm(const HandleSet& texts, int minsup,
-	              int max_iter=-1, Handle initpat=Handle::UNDEFINED);
+	              int max_iter=-1, Handle initpat=Handle::UNDEFINED,
+	              bool incremental_expansion=false,
+	              int max_conjuncts=-1,
+	              double complexity_penalty=0.0);
+	Handle ure_pm(const HandleSeq& texts, int minsup,
+	              int max_iter=-1, Handle initpat=Handle::UNDEFINED,
+	              bool incremental_expansion=false,
+	              int max_conjuncts=-1,
+	              double complexity_penalty=0.0);
 
 	/**
 	 * Configure the C++ Miner and run it.
@@ -142,7 +125,7 @@ private:
 	                  int conjuncts=1,
 	                  const Handle& initpat=Handle::UNDEFINED,
 	                  int maxdepth=-1, double info=1.0);
-	HandleTree cpp_pm(const HandleSet& texts, int minsup=1,
+	HandleTree cpp_pm(const HandleSeq& texts, int minsup=1,
 	                  int conjuncts=1,
 	                  const Handle& initpat=Handle::UNDEFINED,
 	                  int maxdepth=-1, double info=1.0);
@@ -155,9 +138,18 @@ public:
 	void tearDown();
 
 	// Auxiliary methods
+	void test_remove_useless_clauses();
 	void test_match();
 	void test_compose_1();
 	void test_compose_2();
+	void test_compose_3();
+	void test_compose_4();
+	void test_expand_conjunction_disconnect();
+	void test_expand_conjunction_1();
+	void test_expand_conjunction_2();
+	void test_expand_conjunction_3();
+	void test_expand_conjunction_4();
+	void test_shallow_abstract();
 
 	// Pattern miner
 	void test_A();
@@ -168,6 +160,7 @@ public:
 	void test_ABCD();
 	void test_ABAB();
 	void test_AAAA();
+	void test_evaluation();
 	void test_2conjuncts_1();
 	void test_2conjuncts_2();
 	void test_2conjuncts_3();
@@ -175,117 +168,52 @@ public:
 	void test_2conjuncts_5();
 	void test_InferenceControl();
 	void test_SodaDrinker();
+	void test_SodaDrinker_incremental();
 	void xtest_lojban();         // TODO: add support
+	void test_vqa();
 };
 
 Handle MinerUTest::mk_minsup_eval(int minsup,
                                   const Handle& pattern,
                                   TruthValuePtr tv)
 {
-	Handle minsup_eval_h = al(EVALUATION_LINK,
-	                          minsup_prd,
-	                          al(LIST_LINK,
-	                             pattern,
-	                             texts_cpt,
-	                             an(NUMBER_NODE, to_string(minsup))));
-	// Warning: if minsup_eval_h existed, this may erase its TV
-	minsup_eval_h->setTruthValue(tv);
-	return minsup_eval_h;
+	return MinerUTestUtils::add_minsup_eval(_as, pattern, minsup, tv);
 }
 
 Handle MinerUTest::mk_minsup_evals(int minsup,
                                    const HandleSeq& patterns,
                                    TruthValuePtr tv)
 {
-	HandleSeq minsup_evals;
-	for (const Handle& pat : patterns)
-		minsup_evals.push_back(mk_minsup_eval(2, pat, tv));
-	return al(SET_LINK, minsup_evals);
-}
-
-Handle MinerUTest::mk_abs_true_eval(const Handle& h)
-{
-	return al(EVALUATION_LINK,
-	          an(GROUNDED_PREDICATE_NODE, "scm: absolutely-true"),
-	          h);
+	return MinerUTestUtils::add_minsup_evals(_as, patterns, minsup, tv);
 }
 
 Handle MinerUTest::mk_nconjunct(unsigned n)
 {
-	return al(LAMBDA_LINK, al(AND_LINK, gen_variables("$X-", n)));
-}
-
-Handle MinerUTest::gen_variable(const std::string& prefix, int i)
-{
-	return an(VARIABLE_NODE, prefix + std::to_string(i));
-}
-
-HandleSeq MinerUTest::gen_variables(const std::string& prefix, int n)
-{
-	HandleSeq vars;
-	for (int i = 0; i < n; i++)
-		vars.push_back(gen_variable(prefix, i));
-	return vars;
-}
-
-bool MinerUTest::enough_support(const Handle& pat, int minsup)
-{
-	std::string support_query_str("(support\n");
-	support_query_str += pat->to_string();
-	support_query_str += texts_cpt->to_string();
-	support_query_str += std::to_string(minsup) + ")";
-	std::string rs = _scm.eval(support_query_str);
-	int freq = std::stoi(rs);
-	return minsup <= freq;
+	return MinerUTestUtils::add_nconjunct(_as, n);
 }
 
 Handle MinerUTest::ure_pm(const AtomSpace& texts_as, int minsup,
-                          int maxiter, Handle initpat)
+                          int maximum_iterations, Handle initpat,
+                          bool incremental_expansion,
+                          int max_conjuncts,
+                          double complexity_penalty)
 {
-	HandleSet texts;
-	texts_as.get_handles_by_type(std::inserter(texts, texts.end()),
-	                             opencog::ATOM, true);
-	return ure_pm(texts, minsup, maxiter, initpat);
+	return MinerUTestUtils::ure_pm(_as, _scm, pm_rb, texts_as, minsup,
+	                               maximum_iterations, initpat,
+	                               incremental_expansion, max_conjuncts,
+	                               complexity_penalty);
 }
 
-Handle MinerUTest::ure_pm(const HandleSet& texts, int minsup,
-                          int maxiter, Handle initpat)
+Handle MinerUTest::ure_pm(const HandleSeq& texts, int minsup,
+                          int maximum_iterations, Handle initpat,
+                          bool incremental_expansion,
+                          int max_conjuncts,
+                          double complexity_penalty)
 {
-	// Make (Member text (Concept "texts)) links
-	for (const Handle& text : texts)
-		al(MEMBER_LINK, text, texts_cpt);
-
-	// If init is not defined then use top
-	if (not initpat)
-		initpat = top;
-
-	// Add the axiom that initpat has enough support, and use it as
-	// source for the forward chainer
-	bool es = enough_support(initpat, minsup);
-
-	// If it doesn't have enough support return the empty solution
-	if (not es)
-		return al(SET_LINK);
-	TruthValuePtr tv = SimpleTruthValue::createTV(1.0, 1.0);
-	Handle source = mk_minsup_eval(minsup, initpat, tv);
-
-	// Run the foward chainer from the initial pattern
-	ForwardChainer fc(_as, pm_rb, source);
-	fc.get_config().set_maximum_iterations(maxiter);
-	fc.get_config().set_retry_sources(false);
-	fc.do_chain();
-
-	// Run the pattern matcher query to gather the knowledge of
-	// interest, i.e. patterns reaching the minimum support, and
-	// return the results.
-	Handle patvar = an(VARIABLE_NODE, "$patvar"),
-		target = mk_minsup_eval(minsup, patvar),
-		vardecl = al(TYPED_VARIABLE_LINK, patvar, an(TYPE_NODE, "LambdaLink")),
-		abs_true = mk_abs_true_eval(target),
-		bl = al(BIND_LINK, vardecl, al(AND_LINK, target, abs_true), target),
-		results = bindlink(&_as, bl);
-
-	return results;
+	return MinerUTestUtils::ure_pm(_as, _scm, pm_rb, texts, minsup,
+	                               maximum_iterations, initpat,
+	                               incremental_expansion, max_conjuncts,
+	                               complexity_penalty);
 }
 
 HandleTree MinerUTest::cpp_pm(const AtomSpace& texts_as,
@@ -294,24 +222,22 @@ HandleTree MinerUTest::cpp_pm(const AtomSpace& texts_as,
                               const Handle& initpat,
                               int maxdepth, double info)
 {
-	MinerParameters param(minsup, conjuncts, initpat, maxdepth, info);
-	Miner pm(param);
-	return pm(texts_as);
+	return MinerUTestUtils::cpp_pm(texts_as, minsup, conjuncts, initpat, maxdepth, info);
 }
 
-HandleTree MinerUTest::cpp_pm(const HandleSet& texts,
+HandleTree MinerUTest::cpp_pm(const HandleSeq& texts,
                               int minsup,
                               int conjuncts,
                               const Handle& initpat,
                               int maxdepth, double info)
 {
-	MinerParameters param(minsup, conjuncts, initpat, maxdepth, info);
-	Miner pm(param);
-	return pm(texts);
+	return MinerUTestUtils::cpp_pm(texts, minsup, conjuncts, initpat, maxdepth, info);
 }
 
 MinerUTest::MinerUTest() : _scm(&_as), _tmp_scm(&_tmp_as)
 {
+	randGen().seed(0);
+
 	// Main logger
 	logger().set_level(Logger::INFO);
 	logger().set_timestamp_flag(false);
@@ -359,13 +285,14 @@ void MinerUTest::setUp()
 	G = an(CONCEPT_NODE, "G");
 	H = an(CONCEPT_NODE, "H");
 	pm_rb = an(CONCEPT_NODE, "pm-rbs");
+	isurp_rb = an(CONCEPT_NODE, "isurp-rbs");
 	texts_cpt = an(CONCEPT_NODE, "texts");
 	minsup_prd = an(PREDICATE_NODE, "minsup");
+	isurp_prd = an(PREDICATE_NODE, "isurp");
 	top = al(LAMBDA_LINK, X, X);
 
 	// Load URE-based pattern miner
-	std::string rs = _scm.eval("(configure-rules (Concept \"pm-rbs\"))");
-	logger().debug() << "setUp() rs = " << rs;
+	MinerUTestUtils::configure_mandatory_rules(_scm);
 }
 
 void MinerUTest::tearDown()
@@ -374,19 +301,27 @@ void MinerUTest::tearDown()
 	_tmp_as.clear();
 }
 
+void MinerUTest::test_remove_useless_clauses()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	Handle pattern = al(LAMBDA_LINK,
+	                    X,
+	                    al(AND_LINK, X, X)),
+		result = MinerUtils::remove_useless_clauses(pattern),
+		expected = al(LAMBDA_LINK, X, X);
+
+	TS_ASSERT(content_eq(result, expected));
+}
+
 void MinerUTest::test_match()
 {
 	logger().info("BEGIN TEST: %s", __FUNCTION__);
 
-	Handle X = an(VARIABLE_NODE, "$X"),
-		Y = an(VARIABLE_NODE, "$Y"),
-		A = an(CONCEPT_NODE, "A"),
-		B = an(CONCEPT_NODE, "B"),
-		C = an(CONCEPT_NODE, "C"),
-		pattern = al(LAMBDA_LINK,
-		             al(VARIABLE_LIST, X, Y),
-		             al(LOCAL_QUOTE_LINK,
-		                al(AND_LINK, X, Y))),
+	Handle pattern = al(LAMBDA_LINK,
+	                    al(VARIABLE_LIST, X, Y),
+	                    al(LOCAL_QUOTE_LINK,
+	                       al(AND_LINK, X, Y))),
 		text = al(INHERITANCE_LINK, A, al(AND_LINK, B, C));
 
 	TS_ASSERT(not Miner().match(pattern, text));
@@ -396,16 +331,12 @@ void MinerUTest::test_compose_1()
 {
 	logger().info("BEGIN TEST: %s", __FUNCTION__);
 
-	Handle X = an(VARIABLE_NODE, "$X"),
-		Y = an(VARIABLE_NODE, "$Y"),
-		A = an(CONCEPT_NODE, "A"),
-		B = an(CONCEPT_NODE, "B"),
-		pattern = al(LAMBDA_LINK,
-		             al(VARIABLE_LIST, X, Y),
-		             al(AND_LINK, X, al(INHERITANCE_LINK, Y, B))),
+	Handle pattern = al(LAMBDA_LINK,
+	                    al(VARIABLE_LIST, X, Y),
+	                    al(AND_LINK, X, al(INHERITANCE_LINK, Y, B))),
 		subpat = A;
 
-	Handle npat = Miner::compose(pattern, {{Y, subpat}}),
+	Handle npat = MinerUtils::compose(pattern, {{Y, subpat}}),
 		expected = al(LAMBDA_LINK, X, X);
 
 	logger().debug() << "npat = " << oc_to_string(npat);
@@ -418,9 +349,7 @@ void MinerUTest::test_compose_2()
 {
 	logger().info("BEGIN TEST: %s", __FUNCTION__);
 
-	Handle X = an(VARIABLE_NODE, "$X"),
-		Y = an(VARIABLE_NODE, "$Y"),
-		VarXY = al(VARIABLE_LIST, X, Y),
+	Handle VarXY = al(VARIABLE_LIST, X, Y),
 		pattern = al(LAMBDA_LINK,
 		             VarXY,
 		             al(QUOTE_LINK,
@@ -430,7 +359,7 @@ void MinerUTest::test_compose_2()
 		gpn = an(GROUNDED_PREDICATE_NODE, "scm: absolutely-true"),
 		subpat = gpn;
 
-	Handle npat = Miner::compose(pattern, {{X, subpat}}),
+	Handle npat = MinerUtils::compose(pattern, {{X, subpat}}),
 		expected = al(LAMBDA_LINK,
 		              X,
 		              al(QUOTE_LINK,
@@ -442,6 +371,251 @@ void MinerUTest::test_compose_2()
 	logger().debug() << "expected = " << oc_to_string(expected);
 
 	TS_ASSERT(content_eq(npat, expected));
+}
+
+void MinerUTest::test_compose_3()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	Handle VarXY = al(VARIABLE_LIST, X, Y),
+		pattern = al(LAMBDA_LINK,
+		             al(IMPLICATION_LINK, X, Y));
+
+	Handle npat = MinerUtils::compose(pattern, {{Y, Y}}),
+		expected = al(LAMBDA_LINK,
+		              VarXY,
+		              al(IMPLICATION_LINK, X, Y));
+
+	logger().debug() << "npat = " << oc_to_string(npat);
+	logger().debug() << "expected = " << oc_to_string(expected);
+
+	TS_ASSERT(content_eq(npat, expected));
+}
+
+void MinerUTest::test_compose_4()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	Handle sa = al(LAMBDA_LINK, X, al(LOCAL_QUOTE_LINK, al(NOT_LINK, X))),
+		npat = MinerUtils::compose(top, {{X, sa}}),
+		expected = sa;
+
+	logger().debug() << "npat = " << oc_to_string(npat);
+	logger().debug() << "expected = " << oc_to_string(expected);
+
+	TS_ASSERT(content_eq(npat, expected));
+}
+
+void MinerUTest::test_expand_conjunction_disconnect()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	Handle result = MinerUtils::expand_conjunction_disconnect(top, top),
+		expected = al(LAMBDA_LINK,
+		              al(VARIABLE_LIST, X, Y),
+		              al(AND_LINK, X, Y));
+
+	TS_ASSERT(content_eq(result, expected));
+}
+
+void MinerUTest::test_expand_conjunction_1()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	// Texts
+	Handle
+		InhAB = al(INHERITANCE_LINK, A, B),
+		InhBC = al(INHERITANCE_LINK, B, C);
+	HandleSeq texts{InhAB, InhBC};
+
+	Handle InhXY = al(INHERITANCE_LINK, X, Y),
+		VarXY = al(VARIABLE_LIST, X, Y),
+		p1 = al(LAMBDA_LINK,
+		        VarXY,
+		        al(AND_LINK, InhXY, InhXY)),
+		p2 = al(LAMBDA_LINK,
+		         VarXY,
+		         InhXY);
+
+	HandleSet results = MinerUtils::expand_conjunction(p1, p2, texts, 1);
+	// Empty because all resulting expansions have a number of clauses
+	// equal to or below that of p1.
+	HandleSet expected{};
+
+	logger().debug() << "results = " << oc_to_string(results);
+	logger().debug() << "expected = " << oc_to_string(expected);
+
+	TS_ASSERT(content_eq(results, expected));
+}
+
+void MinerUTest::test_expand_conjunction_2()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	// Texts
+	Handle
+		InhAC = al(INHERITANCE_LINK, A, C),
+		InhBC = al(INHERITANCE_LINK, B, C);
+	HandleSeq texts{InhAC, InhBC};
+
+	Handle InhXC = al(INHERITANCE_LINK, X, C),
+		pat = al(LAMBDA_LINK,
+		         X,
+		         InhXC);
+
+	HandleSet results = MinerUtils::expand_conjunction(pat, pat, texts, 1);
+	// Empty because the only result is equal to pat, thus rejected as
+	// worthwhile expansion
+	HandleSet expected{};
+
+	logger().debug() << "results = " << oc_to_string(results);
+	logger().debug() << "expected = " << oc_to_string(expected);
+
+	TS_ASSERT(content_eq(results, expected));
+}
+
+void MinerUTest::test_expand_conjunction_3()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	// Texts
+	Handle
+		InhAB = al(INHERITANCE_LINK, A, B),
+		InhBC = al(INHERITANCE_LINK, B, C);
+	HandleSeq texts{InhAB, InhBC};
+
+	Handle InhXY = al(INHERITANCE_LINK, X, Y),
+		VarXY = al(VARIABLE_LIST, X, Y),
+		pat = al(LAMBDA_LINK,
+		         VarXY,
+		         InhXY);
+
+	HandleSet results = MinerUtils::expand_conjunction(pat, pat, texts, 1);
+	Handle
+		InhXW = al(INHERITANCE_LINK, X, W),
+		InhZX = al(INHERITANCE_LINK, Z, X),
+		InhYW = al(INHERITANCE_LINK, Y, W),
+		InhZY = al(INHERITANCE_LINK, Z, Y),
+		VarXYW = al(VARIABLE_LIST, X, Y, W),
+		VarXYZ = al(VARIABLE_LIST, X, Y, Z),
+		InhXYXW = al(LAMBDA_LINK,
+		             VarXYW,
+		             al(AND_LINK, InhXY, InhXW)),
+		InhXYZX = al(LAMBDA_LINK,
+		             VarXYZ,
+		             al(AND_LINK, InhXY, InhZX)),
+		InhXYYW = al(LAMBDA_LINK,
+		             VarXYW,
+		             al(AND_LINK, InhXY, InhYW)),
+		InhXYZY = al(LAMBDA_LINK,
+		             VarXYZ,
+		             al(AND_LINK, InhXY, InhZY));
+	HandleSet expected{InhXYXW, InhXYZX, InhXYYW, InhXYZY};
+
+	logger().debug() << "results = " << oc_to_string(results);
+	logger().debug() << "expected = " << oc_to_string(expected);
+
+	TS_ASSERT(content_eq(results, expected));
+}
+
+void MinerUTest::test_expand_conjunction_4()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	// Texts
+	Handle
+		InhAB = al(INHERITANCE_LINK, A, B),
+		LstAB = al(LIST_LINK, A, B);
+	HandleSeq texts{InhAB, LstAB};
+
+	Handle InhXY = al(INHERITANCE_LINK, X, Y),
+		LstXY = al(LIST_LINK, X, Y),
+		VarXY = al(VARIABLE_LIST, X, Y),
+		p1 = al(LAMBDA_LINK,
+		        VarXY,
+		        InhXY),
+		p2 = al(LAMBDA_LINK,
+		        VarXY,
+		        LstXY);
+
+	HandleSet results = MinerUtils::expand_conjunction(p1, p2, texts, 1);
+	Handle
+		InhXZ = al(INHERITANCE_LINK, X, Z),
+		InhZY = al(INHERITANCE_LINK, Z, Y),
+		LstXZ = al(LIST_LINK, X, Z),
+		LstZY = al(LIST_LINK, Z, Y),
+		VarXYZ = al(VARIABLE_LIST, X, Y, Z),
+		InhXYLstXZ = al(LAMBDA_LINK,
+		                VarXYZ,
+		                al(AND_LINK, InhXY, LstXZ)),
+		InhXYLstZY = al(LAMBDA_LINK,
+		                VarXYZ,
+		                al(AND_LINK, InhXY, LstZY)),
+		InhXYLstXY = al(LAMBDA_LINK,
+		                VarXY,
+		                al(AND_LINK, InhXY, LstXY));
+	HandleSet expected{InhXYLstXZ, InhXYLstZY, InhXYLstXY};
+
+	logger().debug() << "results = " << oc_to_string(results);
+	logger().debug() << "expected = " << oc_to_string(expected);
+
+	TS_ASSERT(content_eq(results, expected));
+}
+
+void MinerUTest::test_shallow_abstract()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	// Load ugly-male-soda-drinker-corpus.scm
+	std::string rs =
+		_tmp_scm.eval("(load-from-path \"ugly-male-soda-drinker-corpus.scm\")");
+	logger().debug() << "rs = " << rs;
+
+	// Define pattern
+	Handle VarXZW = al(VARIABLE_LIST, X, Z, W),
+		ugly = an(CONCEPT_NODE, "ugly"),
+		clauses = al(AND_LINK,
+		             al(INHERITANCE_LINK, X, ugly),
+		             al(INHERITANCE_LINK, X, Z),
+		             al(INHERITANCE_LINK, X, W)),
+		pattern = al(LAMBDA_LINK, VarXZW, clauses);
+
+	// Define texts
+	HandleSeq texts;
+	_tmp_as.get_handles_by_type(std::inserter(texts, texts.end()),
+	                            opencog::ATOM, true);
+
+	// Define minimum support
+	int ms = 5;
+
+	// Calculate the shallow abstractions
+	HandleSetSeq result = MinerUtils::shallow_abstract(pattern, texts, ms);
+
+	// Construct expected shallow abstractions
+	Handle
+		Abe = an(CONCEPT_NODE, "Abe"),
+		Alaura = an(CONCEPT_NODE, "Alaura"),
+		Allen = an(CONCEPT_NODE, "Allen"),
+		Cason = an(CONCEPT_NODE, "Cason"),
+		Davion = an(CONCEPT_NODE, "Davion"),
+		Emily = an(CONCEPT_NODE, "Emily"),
+		Hessley = an(CONCEPT_NODE, "Hessley"),
+		Lily = an(CONCEPT_NODE, "Lily"),
+		Lucy = an(CONCEPT_NODE, "Lucy"),
+		Sophia = an(CONCEPT_NODE, "Sophia"),
+		human = an(CONCEPT_NODE, "human"),
+		man = an(CONCEPT_NODE, "man"),
+		soda_drinker = an(CONCEPT_NODE, "soda drinker"),
+		woman = an(CONCEPT_NODE, "woman");
+	HandleSetSeq expect{ { Abe, Alaura, Allen, Cason, Davion,
+	                       Emily, Hessley, Lily, Lucy, Sophia },
+	                     { soda_drinker, W, ugly, man, human, woman },
+	                     { soda_drinker, ugly, man, human, woman } };
+
+	logger().debug() << "result = " << oc_to_string(result);
+	logger().debug() << "expect = " << oc_to_string(expect);
+
+	TS_ASSERT(content_eq(result, expect));
 }
 
 void MinerUTest::test_A()
@@ -502,7 +676,7 @@ void MinerUTest::test_AB_AC()
 	// Define texts
 	Handle InhAB = al(INHERITANCE_LINK, A, B),
 		InhAC = al(INHERITANCE_LINK, A, C);
-	HandleSet texts{InhAB, InhAC};
+	HandleSeq texts{InhAB, InhAC};
 
 	// Define pattern parts
 	Handle VarXY = al(VARIABLE_LIST, X, Y),
@@ -521,8 +695,9 @@ void MinerUTest::test_AB_AC()
 
 	// Run URE pattern miner (using _as for testing more diverse
 	// content)
-	Handle ure_results = ure_pm(_as, 2, 20),
-		ure_expected = mk_minsup_eval(2, al(LAMBDA_LINK, Y, InhAY));
+	Handle ure_results = ure_pm(_as, 2, 10),
+		expected_pattern = al(LAMBDA_LINK, Y, InhAY),
+		ure_expected = mk_minsup_eval(2, expected_pattern);
 
 	logger().debug() << "ure_results = " << oc_to_string(ure_results);
 	logger().debug() << "ure_expected = " << oc_to_string(ure_expected);
@@ -538,7 +713,7 @@ void MinerUTest::test_AB_AC_BC()
 	Handle InhAB = al(INHERITANCE_LINK, A, B),
 		InhAC = al(INHERITANCE_LINK, A, C),
 		InhBC = al(INHERITANCE_LINK, B, C);
-	HandleSet texts{A, B, C, InhAB, InhAC, InhBC};
+	HandleSeq texts{A, B, C, InhAB, InhAC, InhBC};
 
 	// Define pattern parts
 	Handle VarXY = al(VARIABLE_LIST, X, Y),
@@ -558,7 +733,7 @@ void MinerUTest::test_AB_AC_BC()
 	TS_ASSERT(content_eq(cpp_results, cpp_expected));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(texts, 2, 100),
+	Handle ure_results = ure_pm(texts, 2, 10),
 		ure_expected = mk_minsup_evals(2,
 		                               { top,
 		                                 al(LAMBDA_LINK, VarXY, InhXY),
@@ -578,7 +753,7 @@ void MinerUTest::test_AB_ABC()
 	// Define texts
 	Handle InhAB = al(INHERITANCE_LINK, A, B),
 		InhABC = al(INHERITANCE_LINK, A, al(AND_LINK, B, C));
-	HandleSet texts{A, B, C, InhAB, InhABC};
+	HandleSeq texts{A, B, C, InhAB, InhABC};
 
 	// Define pattern parts
 	Handle VarXY = al(VARIABLE_LIST, X, Y),
@@ -598,7 +773,7 @@ void MinerUTest::test_AB_ABC()
 	TS_ASSERT(content_eq(cpp_results, cpp_expected));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(texts, 2, 100),
+	Handle ure_results = ure_pm(texts, 2, 10),
 		ure_expected = mk_minsup_evals(2,
 		                               { top,
 		                                 al(LAMBDA_LINK, VarXY, InhXY),
@@ -621,7 +796,7 @@ void MinerUTest::test_ABCD()
 		InhGH = al(INHERITANCE_LINK, G, H),
 		ImpABCD = al(IMPLICATION_LINK, InhAB, InhCD),
 		ImpEFGH = al(IMPLICATION_LINK, InhEF, InhGH);
-	HandleSet texts{InhAB, InhCD, InhEF, InhGH, ImpABCD, ImpEFGH};
+	HandleSeq texts{InhAB, InhCD, InhEF, InhGH, ImpABCD, ImpEFGH};
 
 	// Define pattern parts
 	Handle InhXY = al(INHERITANCE_LINK, X, Y),
@@ -649,7 +824,7 @@ void MinerUTest::test_ABCD()
 	TS_ASSERT(content_eq(cpp_expected, cpp_results));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(texts, 2, 100, initpat),
+	Handle ure_results = ure_pm(texts, 2, 10, initpat),
 		ure_expected = mk_minsup_evals(2,
 		                               { al(LAMBDA_LINK, ImpXY),
 		                                 al(LAMBDA_LINK,
@@ -674,7 +849,7 @@ void MinerUTest::test_ABAB()
 		InhBC = al(INHERITANCE_LINK, B, C),
 		ImpABAB = al(IMPLICATION_LINK, InhAB, InhAB),
 		ImpBCBC = al(IMPLICATION_LINK, InhBC, InhBC);
-	HandleSet texts{ImpABAB, ImpBCBC};
+	HandleSeq texts{ImpABAB, ImpBCBC};
 
 	// Define pattern parts
 	Handle VarXY = al(VARIABLE_LIST, X, Y),
@@ -694,7 +869,7 @@ void MinerUTest::test_ABAB()
 	TS_ASSERT(content_is_in(cpp_expected, cpp_results));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(texts, 2, 100, initpat),
+	Handle ure_results = ure_pm(texts, 2, 10, initpat),
 		ure_expected = mk_minsup_eval(2,
 		                              al(LAMBDA_LINK,
 		                                 VarXY,
@@ -715,7 +890,7 @@ void MinerUTest::test_AAAA()
 		BB = al(INHERITANCE_LINK, B, B),
 		AAAA = al(IMPLICATION_LINK, AA, AA),
 		BBBB = al(IMPLICATION_LINK, BB, BB);
-	HandleSet texts{AAAA, BBBB};
+	HandleSeq texts{AAAA, BBBB};
 
 	// Define pattern parts
 	Handle InhXX = al(INHERITANCE_LINK, X, X);
@@ -737,12 +912,44 @@ void MinerUTest::test_AAAA()
 	TS_ASSERT(content_is_in(cpp_expected, cpp_results));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(texts, 2, 100, initpat),
+	Handle ure_results = ure_pm(texts, 2, 50, initpat),
 		ure_expected = mk_minsup_eval(2,
 		                              al(LAMBDA_LINK,
 		                                 al(IMPLICATION_LINK,
 		                                    InhXX,
 		                                    InhXX)));
+
+	logger().debug() << "ure_results = " << oc_to_string(ure_results);
+	logger().debug() << "ure_expected = " << oc_to_string(ure_expected);
+
+	TS_ASSERT(is_in(ure_expected, ure_results->getOutgoingSet()));
+}
+
+void MinerUTest::test_evaluation()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	// Define texts
+	Handle P = an(PREDICATE_NODE, "P"),
+		PA = al(EVALUATION_LINK, P, A),
+		PB = al(EVALUATION_LINK, P, B);
+	HandleSeq texts{PA, PB};
+
+	// Define expected pattern
+	Handle PX = al(EVALUATION_LINK, P, X),
+		cpp_expected = al(LAMBDA_LINK, X, PX);
+
+	// Run C++ pattern miner
+	HandleTree cpp_results = cpp_pm(texts, 2);
+
+	logger().debug() << "cpp_results = " << oc_to_string(cpp_results);
+	logger().debug() << "cpp_expected = " << oc_to_string(cpp_expected);
+
+	TS_ASSERT(content_is_in(cpp_expected, cpp_results));
+
+	// Run URE pattern miner
+	Handle ure_results = ure_pm(texts, 2, 5),
+		ure_expected = mk_minsup_eval(2, cpp_expected);
 
 	logger().debug() << "ure_results = " << oc_to_string(ure_results);
 	logger().debug() << "ure_expected = " << oc_to_string(ure_expected);
@@ -758,7 +965,7 @@ void MinerUTest::test_2conjuncts_1()
 	Handle InhAB = al(INHERITANCE_LINK, A, B),
 		InhBC1 = al(INHERITANCE_LINK, B, C1),
 		InhBC2 = al(INHERITANCE_LINK, B, C2);
-	HandleSet texts{InhAB, InhBC1, InhBC2};
+	HandleSeq texts{InhAB, InhBC1, InhBC2};
 
 	// Define pattern parts
 	Handle VarXY = al(VARIABLE_LIST, X, Y),
@@ -793,7 +1000,7 @@ void MinerUTest::test_2conjuncts_2()
 	Handle AB = al(INHERITANCE_LINK, A, B),
 		BC1 = al(INHERITANCE_LINK, B, C1),
 		BC2 = al(INHERITANCE_LINK, B, C2);
-	HandleSet texts{AB, BC1, BC2};
+	HandleSeq texts{AB, BC1, BC2};
 
 	// Define pattern parts
 	Handle VarXYZ = al(VARIABLE_LIST, X, Y, Z),
@@ -823,7 +1030,7 @@ void MinerUTest::test_2conjuncts_2()
 	TS_ASSERT(content_is_in(cpp_expected, cpp_results));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(texts, 2, 100, initpat),
+	Handle ure_results = ure_pm(texts, 2, 2, initpat),
 		ure_expected = mk_minsup_eval(2,
 		                              al(LAMBDA_LINK,
 		                                 VarXYZ,
@@ -845,7 +1052,7 @@ void MinerUTest::test_2conjuncts_3()
 	Handle InhAB = al(INHERITANCE_LINK, A, B),
 		InhBC1 = al(INHERITANCE_LINK, B, C1),
 		InhBC2 = al(INHERITANCE_LINK, B, C2);
-	HandleSet texts{InhAB, InhBC1, InhBC2};
+	HandleSeq texts{InhAB, InhBC1, InhBC2};
 
 	// Define pattern parts
 	Handle VarXYZ = al(VARIABLE_LIST, X, Y, Z),
@@ -866,7 +1073,7 @@ void MinerUTest::test_2conjuncts_3()
 	TS_ASSERT(content_is_in(cpp_expected, cpp_results));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(texts, 2, 500, mk_nconjunct(2)),
+	Handle ure_results = ure_pm(texts, 2, 50, mk_nconjunct(2)),
 		ure_expected = mk_minsup_eval(2,
 		                              al(LAMBDA_LINK,
 		                                 VarXYZ,
@@ -889,7 +1096,7 @@ void MinerUTest::test_2conjuncts_4()
 		InhA2B = al(INHERITANCE_LINK, A2, B),
 		InhBC1 = al(INHERITANCE_LINK, B, C1),
 		InhBC2 = al(INHERITANCE_LINK, B, C2);
-	HandleSet texts{InhA1B, InhA2B, InhBC1, InhBC2};
+	HandleSeq texts{InhA1B, InhA2B, InhBC1, InhBC2};
 
 	// Define pattern parts
 	Handle VarXYZ = al(VARIABLE_LIST, X, Y, Z),
@@ -910,7 +1117,7 @@ void MinerUTest::test_2conjuncts_4()
 	TS_ASSERT(content_is_in(cpp_expected, cpp_results));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(texts, 4, 500, mk_nconjunct(2)),
+	Handle ure_results = ure_pm(texts, 4, 100, mk_nconjunct(2)),
 		ure_expected = mk_minsup_eval(4,
 		                              al(LAMBDA_LINK,
 		                                 VarXYZ,
@@ -936,7 +1143,7 @@ void MinerUTest::test_2conjuncts_5()
 		InhBC1 = al(INHERITANCE_LINK, B, C1),
 		InhBC2 = al(INHERITANCE_LINK, B, C2),
 		InhBC3 = al(INHERITANCE_LINK, B, C3);
-	HandleSet texts{InhA1B, InhA2B, InhBC1, InhBC2};
+	HandleSeq texts{InhA1B, InhA2B, InhBC1, InhBC2};
 
 	// Define pattern parts
 	Handle VarXYZ = al(VARIABLE_LIST, X, Y, Z),
@@ -1050,7 +1257,8 @@ void MinerUTest::test_InferenceControl()
 	//       Inheritance
 	//         Concept "a"
 	//         Variable "$X"
-	//       GroundedSchema "scm: conditional-full-instantiation-scope-formula"
+	//       DontExec
+	//         DefinedSchema "conditional-full-instantiation-implication-scope-meta-rule"
 	//     Variable "$B"
 	//   Evaluation
 	//     Predicate "preproof-of"
@@ -1093,7 +1301,7 @@ void MinerUTest::test_InferenceControl()
 	TS_ASSERT(content_is_in(expected, cpp_results));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(_tmp_as, 2, 1000, initpat),
+	Handle ure_results = ure_pm(_tmp_as, 2, 100, initpat),
 		ure_expected = mk_minsup_eval(2, expected);
 
 	logger().debug() << "ure_results = " << oc_to_string(ure_results);
@@ -1133,18 +1341,7 @@ void MinerUTest::test_SodaDrinker()
 	//     Inheritance
 	//       X
 	//       Concept "ugly"
-	Handle man = an(CONCEPT_NODE, "man"),
-		soda_drinker = an(CONCEPT_NODE, "soda drinker"),
-		ugly = an(CONCEPT_NODE, "ugly"),
-		is_man = al(INHERITANCE_LINK, X, man),
-		is_soda_drinker = al(INHERITANCE_LINK, X, soda_drinker),
-		is_ugly = al(INHERITANCE_LINK, X, ugly),
-		expected = al(LAMBDA_LINK,
-		              X,
-		              al(AND_LINK,
-		                 is_man,
-		                 is_soda_drinker,
-		                 is_ugly));
+	Handle expected = MinerUTestUtils::add_ugly_man_soda_drinker_pattern(_as);
 
 	logger().debug() << "expected = " << oc_to_string(expected);
 
@@ -1158,13 +1355,83 @@ void MinerUTest::test_SodaDrinker()
 	TS_ASSERT(content_is_in(expected, cpp_results));
 
 	// Run URE pattern miner
-	Handle ure_results = ure_pm(_tmp_as, 5, 1000, initpat),
+	Handle ure_results = ure_pm(_tmp_as, 5, 100, initpat),
 		ure_expected = mk_minsup_eval(5, expected);
 
 	logger().debug() << "ure_results = " << oc_to_string(ure_results);
 	logger().debug() << "ure_expected = " << oc_to_string(ure_expected);
 
 	TS_ASSERT(is_in(ure_expected, ure_results->getOutgoingSet()));
+}
+
+// Like test_SodaDrinker but starts with the most abstract pattern and
+// incrementally adds conjuncts
+void MinerUTest::test_SodaDrinker_incremental()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	// Define texts
+	// Load ugly-male-soda-drinker-corpus.scm
+	std::string rs =
+		_tmp_scm.eval("(load-from-path \"ugly-male-soda-drinker-corpus.scm\")");
+	logger().debug() << "rs = " << rs;
+
+	// Start from top, conjunctions will be grown incrementally
+	Handle initpat = top;
+
+	// Note: move the definition of 'expected' here to reproduce weird
+	// bug (the pattern is ignored by surprisingness).
+
+	// Run URE pattern miner
+	bool incremental_expansion = true;
+	int max_conjuncts = 3;
+	double complexity_penalty = 1;
+	int minsup = 5;
+	int max_iteration = 500;
+	Handle ure_results = ure_pm(_tmp_as, minsup, max_iteration,
+	                            initpat,
+	                            incremental_expansion,
+	                            max_conjuncts,
+	                            complexity_penalty);
+
+	// The pattern of interest looks like
+	//
+	// Lambda
+	//   X
+	//   And
+	//     Inheritance
+	//       X
+	//       Concept "man"
+	//     Inheritance
+	//       X
+	//       Concept "soda drinker"
+	//     Inheritance
+	//       X
+	//       Concept "ugly"
+	Handle expected = MinerUTestUtils::add_ugly_man_soda_drinker_pattern(_as);
+
+	logger().debug() << "expected = " << oc_to_string(expected);
+
+	Handle ure_expected = mk_minsup_eval(minsup, expected);
+
+	logger().debug() << "ure_results = " << oc_to_string(ure_results->getOutgoingSet());
+	logger().debug() << "ure_expected = " << oc_to_string(ure_expected);
+
+	TS_ASSERT(is_in(ure_expected, ure_results->getOutgoingSet()));
+
+	// Test I-Surprisingness
+	std::string mode("nisurp-old");
+	HandleSeq isurp_results = MinerUTestUtils::ure_isurp(_as, _scm, isurp_rb,
+	                                                     mode, max_conjuncts);
+
+	// We get the second, because due to the old I-Surprisingness not
+	// accounting for linkage, the ugly male soda drinker comes second
+	// not first.
+	Handle isurp_result = isurp_results[1];
+
+	logger().debug() << "isurp_results = " << oc_to_string(isurp_results);
+
+	TS_ASSERT(content_eq(expected, MinerUTestUtils::get_pattern(isurp_result)));
 }
 
 void MinerUTest::xtest_lojban()
@@ -1221,6 +1488,72 @@ void MinerUTest::xtest_lojban()
 	logger().debug() << "expected_pattern = " << oc_to_string(expected_pattern);
 
 	TS_ASSERT(content_is_in(expected_pattern, results));
+}
+
+void MinerUTest::test_vqa()
+{
+	logger().info("BEGIN TEST: %s", __FUNCTION__);
+
+	// Define texts
+	//
+	// Unit test built from Visual Question Answer data set from
+	// https://github.com/singnet/semantic-vision/tree/master/experiments/opencog/pattern_miner_4_vqa
+	std::string rs =
+		_tmp_scm.eval("(load-from-path \"QA_knowledge_base_v2_no_duplicates.scm\")");
+	logger().debug() << "rs = " << rs;
+
+	// Start from top, conjunctions will be grown incrementally
+	Handle initpat = top;
+
+	// The pattern of interest looks like
+	//
+	// (LambdaLink
+	//   (VariableList
+	//     (VariableNode "$PM-24b2cd09")
+	//     (VariableNode "$PM-1b1cc2ca")
+	//     (VariableNode "$PM-24b2cd09-1de71072")
+	//   )
+	//   (AndLink
+	//     (MemberLink
+	//       (VariableNode "$PM-24b2cd09")
+	//       (VariableNode "$PM-1b1cc2ca")
+	//     )
+	//     (MemberLink
+	//       (VariableNode "$PM-24b2cd09-1de71072")
+	//       (VariableNode "$PM-1b1cc2ca")
+	//     )
+	//   )
+	// )
+	//
+	// TODO: find a better pattern of interest
+	Handle
+		VarXYZ = al(VARIABLE_LIST, X, Y, Z),
+		MemXY = al(MEMBER_LINK, X, Y),
+		MemZY = al(MEMBER_LINK, Z, Y),
+		expected = al(LAMBDA_LINK,
+		              VarXYZ,
+		              al(AND_LINK,
+		                 MemXY,
+		                 MemZY));
+
+	logger().debug() << "expected = " << oc_to_string(expected);
+
+	// Run URE pattern miner
+	bool incremental_expansion = true;
+	int minsup = 500;
+	int max_conjuncts = 2;
+	double complexity_penalty = 1;
+	Handle ure_results = ure_pm(_tmp_as, minsup, 100,
+	                            initpat,
+	                            incremental_expansion,
+	                            max_conjuncts,
+	                            complexity_penalty),
+		ure_expected = mk_minsup_eval(minsup, expected);
+
+	logger().debug() << "ure_results = " << oc_to_string(ure_results);
+	logger().debug() << "ure_expected = " << oc_to_string(ure_expected);
+
+	TS_ASSERT(is_in(ure_expected, ure_results->getOutgoingSet()));
 }
 
 #undef al

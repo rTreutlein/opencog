@@ -51,7 +51,7 @@
 
 (define (test-update-tv node strength)
     (cog-set-tv! node
-        (stv (string->number (cog-name strength)) (cog-tv-conf (cog-tv node))))
+        (stv (cog-number strength) (cog-confidence node)))
     (stv 1 1)
 )
 
@@ -268,7 +268,7 @@
 "
   Returns the strength of the demand-node to two decimal places.
 "
-    (/ (round (* 100 (cog-tv-mean (cog-tv demand-node))) ) 100)
+    (/ (round (* 100 (cog-mean demand-node)) ) 100)
 )
 
 (define (do_psi_step)
@@ -277,6 +277,9 @@
 )
 
 ; --------------------------------------------------------------
+(define (component-5) (psi-component "component-5"))
+(define (component-6) (psi-component "component-6"))
+
 (define (test-psi-run)
 "
   If the loop-count is increasing then it means the loop is running
@@ -286,8 +289,6 @@
   ; not be started at the same time.
   (sleep 1)
   (psi-run d2)
-  (groundable-content-1)
-  (groundable-content-2)
 
   (let ((l1 (psi-loop-count d1))
     (l2 (psi-loop-count d2)))

@@ -1,9 +1,8 @@
 
-#include <opencog/atoms/proto/NameServer.h>
-#include <opencog/atomutils/Neighbors.h>
+#include <opencog/atoms/atom_types/NameServer.h>
+#include <opencog/neighbors/Neighbors.h>
 #include <opencog/atoms/base/Link.h>
 #include <opencog/guile/SchemeEval.h>
-#include <opencog/query/BindLinkAPI.h>
 #include <opencog/util/Config.h>
 
 #include "AttentionParamQuery.h"
@@ -60,7 +59,7 @@ const std::string AttentionParamQuery::rent_tournament_size = "RENT_TOURNAMENT_S
 AttentionParamQuery::AttentionParamQuery(AtomSpace* as): _as(as)
 {
     load_default_values();
-    
+
     parent_param = _as->add_node(CONCEPT_NODE, "ECAN_PARAMS");
 
     Handle var = _as->add_node(VARIABLE_NODE, "__ECAN_PARAM__");
@@ -110,7 +109,7 @@ Handle AttentionParamQuery::get_param_hvalue(const std::string& param)
 
 HandleSeq AttentionParamQuery::get_params(void)
 {
-    Handle rh = satisfying_set(_as, hget_params);
+    Handle rh = HandleCast(hget_params->execute(_as));
     if (NULL != rh) rh = _as->add_atom(rh);
 
     return rh->getOutgoingSet();
@@ -119,5 +118,5 @@ HandleSeq AttentionParamQuery::get_params(void)
 void AttentionParamQuery::load_default_values(void)
 {
      SchemeEval scm(_as);
-     scm.eval("(load \"" DATADIR"/scm/opencog/attention/default-param-values.scm\")");
+     scm.eval("(load \"" GUILE_SITE_DIR "/opencog/attention/default-param-values.scm\")");
 }
