@@ -22,7 +22,7 @@ jobs:
             - ccache-{{ checksum "/tmp/date" }}
             - ccache-
       - run:
-          name: Install cogutil
+          name: Install CogUtil
           command: |
             git clone --depth 1 https://github.com/$CIRCLE_PROJECT_USERNAME/cogutil /ws/cogutil
             mkdir -p /ws/cogutil/build
@@ -55,7 +55,16 @@ jobs:
           key: haskelldeps-{{checksum "/ws/atomspace/opencog/haskell/stack.yaml"}}-{{checksum "/ws/atomspace/opencog/haskell/opencog-atomspace.cabal"}}-{{ arch }}
           paths:
             - /ws/atomspace/opencog/haskell/.stack-work
-      - checkout
+      - run:
+          name: Checkout URE
+          command: |
+            git clone --depth 1 https://github.com/$CIRCLE_PROJECT_USERNAME/ure /ws/ure
+            mkdir -p /ws/ure/build
+            cd /ws/ure/build && cmake .. && make -j2 && make -j2 install
+            ldconfig
+      - run:
+          name: Checkout OpenCog
+          command: git clone --depth 1 https://github.com/$CIRCLE_PROJECT_USERNAME/opencog /ws/opencog
       - run:
           name: CMake Configure
           command: mkdir build && cd build && cmake ..
@@ -63,14 +72,14 @@ jobs:
           name: Build
           command: cd build && make -j2
       - run:
-          name: Install OpenCog
-          command: cd build && make -j2 install && ldconfig
-      - run:
           name: Build tests
           command: cd build && make -j2 tests
       - run:
           name: Run tests
           command: cd build && make -j2 test ARGS=-j2
+      - run:
+          name: Install OpenCog
+          command: cd build && make -j2 install && ldconfig
       - run:
           name: Print test log
           command: cat build/tests/Testing/Temporary/LastTest.log
@@ -78,6 +87,7 @@ jobs:
       - persist_to_workspace:
           root: /ws/
           paths:
+            - opencog
             - ccache
 
   package: #Place holder

@@ -58,6 +58,7 @@
         )
   )
 (define rule-files (map append-rule-dir rule-basenames))
+(use-modules (opencog logger))
 (for-each load rule-files)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;

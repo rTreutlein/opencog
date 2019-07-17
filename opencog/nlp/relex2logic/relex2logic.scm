@@ -1,11 +1,8 @@
 
 (define-module (opencog nlp relex2logic))
 
-; (add-to-load-path "/usr/local/share/opencog/scm")
-
 (use-modules (srfi srfi-1))
 (use-modules (opencog))
-(use-modules (opencog spacetime))
 (use-modules (opencog nlp))
 (use-modules (opencog ure))
 

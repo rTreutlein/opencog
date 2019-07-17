@@ -18,7 +18,7 @@
 ; Example usage:
 ;; Load the needed modules.
 ; (use-modules (opencog) (opencog exec))
-; (use-modules (opencog atom-types) (opencog movement))
+; (use-modules (opencog nlp) (opencog movement))
 ; (use-modules (opencog eva-model))
 ;
 ;; If actually driving the pysical robot, then ...
@@ -34,8 +34,6 @@
 ; (cog-evaluate! (DefinedPredicateNode "Someone visible?"))
 ; (cog-execute! (DefinedSchemaNode "Num visible faces"))
 ;
-(add-to-load-path "/usr/local/share/opencog/scm")
-
 (use-modules (opencog openpsi))
 
 (load "faces.scm")

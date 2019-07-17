@@ -77,12 +77,12 @@
   (LocalQuoteLink                   ; Necessary so the AndLink doesn't
                                     ; count as a connective
     (AndLink
-      (LocalQuoteLink (LambdaLink
-        (VariableNode "$TyVs")
-        (VariableNode "$A1")))
-      (LocalQuoteLink (LambdaLink
-        (VariableNode "$TyVs")
-        (VariableNode "$A2"))))))
+      (QuoteLink (LambdaLink
+        (Unquote (VariableNode "$TyVs"))
+        (Unquote (VariableNode "$A1"))))
+      (QuoteLink (LambdaLink
+        (Unquote (VariableNode "$TyVs"))
+        (Unquote (VariableNode "$A2")))))))
 
 (define and-lambda-factorization-double-implication-rewrite
   (ExecutionOutputLink

@@ -206,7 +206,6 @@ public:
 	{
 		csrv = new CogServer();
 		csrv->loadModules();
-		csrv->loadModule("libscheme-shell.so");
 		csrv->enableNetworkServer(17333);
 		main_loop = new std::thread(&CogServer::serverLoop, csrv);
 

@@ -9,6 +9,10 @@ ENDIF (WIN32)
 ADD_DEFINITIONS(-DPROJECT_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
                 -DPROJECT_BINARY_DIR="${CMAKE_BINARY_DIR}")
 
+# All tests should load the atomspace scm from the build dir, unless the scm
+# file is specific to the test (this variable is used by ADD_CXXTEST)
+SET(GUILE_LOAD_PATH "${PROJECT_BINARY_DIR}/opencog/scm")
+
 # The atom_types.h file is written to the build directory
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
 
@@ -28,15 +32,15 @@ IF (CXXTEST_FOUND)
 			ADD_SUBDIRECTORY (server)
 		ENDIF (HAVE_SERVER)
 
-		IF (HAVE_OCTOMAP)
-			ADD_SUBDIRECTORY (spacetime)
-		ENDIF (HAVE_OCTOMAP)
-
 		ADD_SUBDIRECTORY (nlp)
 
-		ADD_SUBDIRECTORY (pln)
+		IF (HAVE_PLN)
+			ADD_SUBDIRECTORY (pln)
+		ENDIF (HAVE_PLN)
 
-		ADD_SUBDIRECTORY (openpsi)
+                IF (HAVE_OPENPSI)
+			ADD_SUBDIRECTORY (openpsi)
+		ENDIF (HAVE_OPENPSI)
 
 	ENDIF (HAVE_ATOMSPACE)
 
@@ -45,10 +49,8 @@ IF (CXXTEST_FOUND)
 		ADD_SUBDIRECTORY (python)
 	ENDIF (HAVE_CYTHON AND HAVE_NOSETESTS)
 
-	ADD_SUBDIRECTORY (learning)
-
 ENDIF (CXXTEST_FOUND)
 
-IF (HAVE_GUILE)
+IF (HAVE_URE AND HAVE_NLP)
 	ADD_SUBDIRECTORY(ghost)
-ENDIF()
+ENDIF(HAVE_URE AND HAVE_NLP)

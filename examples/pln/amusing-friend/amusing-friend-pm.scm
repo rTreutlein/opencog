@@ -72,7 +72,7 @@
 (cog-execute! implication-scope-to-implication-rule)
 
 ;; (3) Infer the TV of the implicant of (2) using
-;; predicate-lambda-introduction-rule
+;; predicate-lambda-evaluation-rule
 ;;
 ;; Result should be:
 ;;
@@ -92,7 +92,7 @@
 (cog-execute! predicate-lambda-evaluation-rule)
 
 ;; (4) Infer the TV of the implicand of (2) using
-;; predicate-lambda-introduction-rule
+;; predicate-lambda-evaluation-rule
 ;;
 ;; Result should be:
 ;;
@@ -445,7 +445,7 @@
 ;; instantiation can work. This shouldn't be necessary in principle,
 ;; however in the absence of deep type checking, factorizing the scope
 ;; first makes the implementation of implication instantiation
-;; simpler. Apply implication-scope-factorization-rule on (9).
+;; simpler. Apply implication-to-implication-scope-rule on (9).
 ;;
 ;; Result should be:
 ;;
@@ -573,7 +573,7 @@
 ;; instantiation can work. This shouldn't be necessary in principle
 ;; however in the absence of deep type checking, factorizing the scope
 ;; first makes the implementation of implication instantiation
-;; simpler. Apply implication-scope-factorization-rule on (14).
+;; simpler. Apply implication-to-implication-scope-rule on (14).
 ;;
 ;; Result should be:
 ;;
@@ -625,20 +625,4 @@
 ;;    (Evaluation
 ;;       (Predicate "is-honest")
 ;;       (Concept "Bob")))
-
-(define res
-(And
-   (Evaluation
-      (Predicate "will-be-friends")
-      (List
-         (Concept "Self")
-         (Concept "Bob")))
-   (Evaluation
-      (Predicate "is-amusing")
-      (Concept "Bob"))
-   (Evaluation
-      (Predicate "is-honest")
-      (Concept "Bob")))
-)
-(cog-execute! and-introduction-grounded-evaluation-rule)
-;;(display res)
+(define results (cog-execute! and-introduction-grounded-evaluation-rule))
